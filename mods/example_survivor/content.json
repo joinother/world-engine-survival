@@ -1,0 +1,20 @@
+{
+  "items": {
+    "scrap": {
+      "extends": "scrap",
+      "pickup_amount": 4
+    },
+    "field_ration": {
+      "display_name": "野战口粮",
+      "category": "food",
+      "hunger_restore": 30
+    }
+  },
+  "events": {
+    "horde": {
+      "extends": "horde",
+      "duration_minutes": 300,
+      "spawn_count": 3
+    }
+  }
+}

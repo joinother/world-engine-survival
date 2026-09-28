@@ -25,3 +25,15 @@ Luanti and Veloren are studied for modding, server and client boundaries, and co
 ## Poly Haven
 
 Poly Haven is an optional source for prototype textures, HDRIs and models. Downloaded assets are CC0, but each imported asset will still carry a local provenance record. Live API use has additional attribution and usage requirements.
+
+## Additional reference projects
+
+The following projects are architectural references only at this stage:
+
+- [Terasology](https://github.com/MovingBlocks/Terasology): Apache-2.0 code and generally CC-BY-4.0 artwork; useful for voxel modules and community content boundaries.
+- [OpenRA](https://github.com/OpenRA/OpenRA): GPL-3.0; useful for YAML rules, Lua scripting, Mod SDKs and dedicated-server workflows.
+- [0 A.D.](https://github.com/0ad/0ad): mixed GPL-2.0, LGPL-2.1 and MIT components; useful for actor templates and component-oriented simulation.
+- [Endless Sky](https://github.com/endless-sky/endless-sky): GPL-3.0 code with separately licensed art and audio; useful for plugin and content review workflows.
+- [OpenRCT2](https://github.com/OpenRCT2/OpenRCT2): GPL-3.0 engine with a documented JavaScript plugin API; useful for versioned extensions and hot reload.
+
+No source code or assets from these projects are included in `res://`.

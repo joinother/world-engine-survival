@@ -30,6 +30,22 @@ world.snapshot name=before_outbreak
 world.rollback name=before_outbreak
 ```
 
+当前 Demo 使用空格分隔的本地命令作为过渡层：
+
+```text
+state
+needs
+content list
+time advance 60
+event start horde
+world snapshot before_outbreak
+world rollback before_outbreak
+world snapshots
+audit tail
+```
+
+权限会在命令执行前检查：`player` 只能观察和执行生存动作，`director` 可以推进时间和启动事件，`admin` 才能生成实体、创建快照、回滚世界和切换角色。每条命令都会保留操作者、命令、结果和世界时间。
+
 ## 安全规则
 
 - 命令使用 JSON-RPC 或本地 Unix socket 传输；

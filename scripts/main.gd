@@ -2,9 +2,16 @@ extends Node3D
 
 const Player = preload("res://scripts/player.gd")
 const ContentRegistry = preload("res://scripts/content_registry.gd")
+const SaveManager = preload("res://scripts/save_manager.gd")
 
 var player: CharacterBody3D
 var content: ContentRegistry
+var save_manager: SaveManager
+var operator_role := "admin"
+var active_events: Dictionary = {}
+var audit_log: Array[Dictionary] = []
+var event_log: Array[String] = []
+var zombie_speed_multiplier := 1.0
 var scrap := 0
 var energy := 20
 var cores := 0
@@ -34,20 +41,24 @@ var stats_label: Label
 var message_label: Label
 var command_line: LineEdit
 var command_log: Label
+var cli_title_label: Label
 
 func _ready() -> void:
 	content = ContentRegistry.new()
+	save_manager = SaveManager.new()
 	if not content.load_pack("res://content/core.json"):
 		push_warning("content/core.json could not be loaded; using fallback values")
+	content.load_mods("res://mods")
 	_setup_environment()
 	_setup_player()
 	_setup_ui()
-	_set_message(message)
+	_set_message("%s 已加载 %d 个内容源。" % [message, content.sources.size()])
 
 func _process(delta: float) -> void:
 	if not game_over and not game_won:
 		_advance_clock(delta * 2.0)
 		_update_survival(delta * 2.0)
+		_update_events(delta * 2.0)
 		_update_zombies(delta)
 		_update_survivor(delta)
 		_update_energy(delta)
@@ -140,11 +151,11 @@ func _setup_ui() -> void:
 	cli_panel.size = Vector2(720, 125)
 	cli_panel.color = Color(0.04, 0.07, 0.1, 0.94)
 	layer.add_child(cli_panel)
-	var cli_title := Label.new()
-	cli_title.position = Vector2(14, 10)
-	cli_title.text = "AI / CLI 管理台（导演模式）"
-	cli_title.modulate = Color("6ee7f7")
-	cli_panel.add_child(cli_title)
+	cli_title_label = Label.new()
+	cli_title_label.position = Vector2(14, 10)
+	cli_title_label.text = "AI / CLI 管理台（%s）" % operator_role
+	cli_title_label.modulate = Color("6ee7f7")
+	cli_panel.add_child(cli_title_label)
 	command_log = Label.new()
 	command_log.position = Vector2(14, 34)
 	command_log.size = Vector2(690, 42)
@@ -213,12 +224,56 @@ func _update_zombies(delta: float) -> void:
 		var step := (target - current)
 		step.y = 0.0
 		if step.length() > 0.1:
-			current += step.normalized() * delta * 0.8
+			current += step.normalized() * delta * 0.8 * zombie_speed_multiplier
 		zombie_positions[i] = current
 		zombie.position = current + Vector3(0.0, 0.8, 0.0)
 		if current.distance_to(player.global_position) < 1.25:
 			game_over = true
 			_set_message("你被感染者包围了。按 F6 重新加载场景。")
+
+func _update_events(game_minutes: float) -> void:
+	var expired: Array[String] = []
+	for event_id in active_events.keys():
+		var event_state: Dictionary = active_events[event_id]
+		event_state["remaining_minutes"] = float(event_state.get("remaining_minutes", 0.0)) - game_minutes
+		active_events[event_id] = event_state
+		if float(event_state["remaining_minutes"]) <= 0.0:
+			expired.append(str(event_id))
+	for event_id in expired:
+		active_events.erase(event_id)
+		_event_log("事件结束：%s" % event_id)
+	zombie_speed_multiplier = 1.0
+	for event_id in active_events.keys():
+		var active: Dictionary = content.event(str(event_id))
+		zombie_speed_multiplier = max(zombie_speed_multiplier, float(active.get("zombie_speed_multiplier", 1.0)))
+
+func _start_event(event_id: String) -> bool:
+	var event: Dictionary = content.event(event_id)
+	if event.is_empty():
+		return false
+	var duration := float(event.get("duration_minutes", 60.0))
+	active_events[event_id] = {"remaining_minutes": duration}
+	if event_id == "blackout":
+		energy = max(0, energy - int(event.get("energy_loss", 0)))
+	if event_id == "horde":
+		_spawn_zombies(int(event.get("spawn_count", 0)))
+		zombie_speed_multiplier = max(1.0, float(event.get("zombie_speed_multiplier", 1.0)))
+	_event_log("事件开始：%s" % event.get("display_name", event_id))
+	_set_message(str(event.get("message", "事件已开始。")))
+	return true
+
+func _spawn_zombies(count: int) -> void:
+	for index in range(max(0, count)):
+		var angle := float(index) * 1.7 + minutes * 0.01
+		var point := Vector3(cos(angle) * 17.0, 0.0, sin(angle) * 17.0)
+		var zombie := _add_marker(point + Vector3(0.0, 0.8, 0.0), Color("ef5b62"), "感染者")
+		zombies.append(zombie)
+		zombie_positions.append(point)
+
+func _event_log(entry: String) -> void:
+	event_log.append(entry)
+	if event_log.size() > 8:
+		event_log.pop_front()
 
 func _advance_clock(game_minutes: float) -> void:
 	minutes += game_minutes
@@ -249,6 +304,83 @@ func _update_survivor(delta: float) -> void:
 
 func _update_energy(delta: float) -> void:
 	energy = clamp(energy + delta * 0.03, 0, 100)
+
+func _world_state() -> Dictionary:
+	var debris_state: Array[Dictionary] = []
+	for item in debris:
+		var point: Vector3 = item.get("position", Vector3.ZERO)
+		debris_state.append({"x": point.x, "y": point.y, "z": point.z, "taken": bool(item.get("taken", false))})
+	var event_state: Dictionary = {}
+	for event_id in active_events.keys():
+		event_state[str(event_id)] = active_events[event_id]
+	return {
+		"day": day,
+		"minutes": minutes,
+		"scrap": scrap,
+		"energy": energy,
+		"cores": cores,
+		"food": food,
+		"water": water,
+		"hunger": hunger,
+		"thirst": thirst,
+		"fatigue": fatigue,
+		"health": health,
+		"gate_open": gate_open,
+		"survivor_rescued": survivor_rescued,
+		"player_position": {"x": player.global_position.x, "y": player.global_position.y, "z": player.global_position.z},
+		"debris": debris_state,
+		"active_events": event_state
+	}
+
+func _apply_world_state(state: Dictionary) -> void:
+	day = int(state.get("day", day))
+	minutes = float(state.get("minutes", minutes))
+	scrap = int(state.get("scrap", scrap))
+	energy = int(state.get("energy", energy))
+	cores = int(state.get("cores", cores))
+	food = int(state.get("food", food))
+	water = int(state.get("water", water))
+	hunger = float(state.get("hunger", hunger))
+	thirst = float(state.get("thirst", thirst))
+	fatigue = float(state.get("fatigue", fatigue))
+	health = float(state.get("health", health))
+	gate_open = bool(state.get("gate_open", gate_open))
+	survivor_rescued = bool(state.get("survivor_rescued", survivor_rescued))
+	var saved_position: Dictionary = state.get("player_position", {})
+	if player and not saved_position.is_empty():
+		player.global_position = Vector3(float(saved_position.get("x", 0.0)), float(saved_position.get("y", 0.0)), float(saved_position.get("z", 0.0)))
+	active_events.clear()
+	var saved_events: Dictionary = state.get("active_events", {})
+	for event_id in saved_events.keys():
+		active_events[str(event_id)] = saved_events[event_id]
+	zombie_speed_multiplier = 1.0
+	for event_id in active_events.keys():
+		zombie_speed_multiplier = max(zombie_speed_multiplier, float(content.event(str(event_id)).get("zombie_speed_multiplier", 1.0)))
+	var saved_debris: Array = state.get("debris", [])
+	for index in range(min(saved_debris.size(), debris.size())):
+		debris[index]["taken"] = bool(saved_debris[index].get("taken", false))
+	game_over = health <= 0.0
+	game_won = false
+	_set_message("已恢复世界快照。")
+
+func _role_level(role: String) -> int:
+	match role:
+		"player":
+			return 1
+		"director":
+			return 2
+		"admin":
+			return 3
+		_:
+			return 0
+
+func _has_role(required: String) -> bool:
+	return _role_level(operator_role) >= _role_level(required)
+
+func _audit(command: String, result: String) -> void:
+	audit_log.append({"operator": operator_role, "command": command, "result": result, "day": day, "minutes": minutes})
+	if audit_log.size() > 32:
+		audit_log.pop_front()
 
 func player_interact() -> void:
 	if game_over or game_won:
@@ -300,12 +432,15 @@ func _run_command(raw: String) -> void:
 		return
 	var parts := cmd.split(" ", false)
 	var output := "> " + cmd
+	var audit_result := "ok"
 	if parts[0] == "help":
-		output += "\nhelp | state | needs | use food | use water | spawn scrap x z | time advance 分钟 | event blackout | gate open"
-	elif parts[0] == "state":
+		output += "\nstate | needs | content list | use food | use water | time advance 分钟 | event start id | event list | gate open | world snapshot 名称 | world rollback 名称 | world snapshots | audit tail"
+	elif parts[0] == "state" or (parts[0] == "world" and parts.size() >= 2 and parts[1] == "state"):
 		output += "\nday=%d time=%02d:%02d scrap=%d energy=%d cores=%d survivor=%s" % [day, int(minutes / 60.0), int(minutes) % 60, scrap, energy, cores, survivor_rescued]
 	elif parts[0] == "needs":
 		output += "\nhealth=%.0f hunger=%.0f thirst=%.0f fatigue=%.0f food=%d water=%d" % [health, hunger, thirst, fatigue, food, water]
+	elif parts[0] == "content" and parts.size() >= 2 and parts[1] == "list":
+		output += "\nsources=%s items=%s recipes=%s events=%s" % [", ".join(content.sources), ", ".join(content.ids("items")), ", ".join(content.ids("recipes")), ", ".join(content.ids("events"))]
 	elif parts[0] == "use" and parts.size() >= 2 and parts[1] == "food":
 		if food > 0:
 			food -= 1
@@ -320,24 +455,88 @@ func _run_command(raw: String) -> void:
 			output += "\nok: 已饮用净水"
 		else:
 			output += "\nerror: 没有净水"
-	elif parts[0] == "spawn" and parts.size() >= 4 and parts[1] == "scrap":
-		var point := Vector3(float(parts[2]), 0.0, float(parts[3]))
-		debris.append({"position": point, "taken": false})
-		_add_marker(point + Vector3(0.0, 0.35, 0.0), Color("d3a552"), "废料")
-		output += "\nok: 生成废料于 %s" % point
 	elif parts[0] == "time" and parts.size() >= 3 and parts[1] == "advance":
-		var game_minutes: float = max(0.0, float(parts[2]))
-		_advance_clock(game_minutes)
-		_update_survival(game_minutes)
-		output += "\nok: 时间已推进"
+		if not _has_role("director"):
+			output += "\nerror: 需要 director 权限"
+			audit_result = "denied"
+		else:
+			var game_minutes: float = max(0.0, float(parts[2]))
+			_advance_clock(game_minutes)
+			_update_survival(game_minutes)
+			_update_events(game_minutes)
+			output += "\nok: 时间已推进"
+	elif parts[0] == "event" and parts.size() >= 2 and parts[1] == "list":
+		output += "\nactive=%s recent=%s" % [str(active_events.keys()), " | ".join(event_log)]
+	elif parts[0] == "event" and parts.size() >= 3 and parts[1] == "start":
+		if not _has_role("director"):
+			output += "\nerror: 需要 director 权限"
+			audit_result = "denied"
+		elif _start_event(parts[2]):
+			output += "\nok: 事件已启动"
+		else:
+			output += "\nerror: 未知事件"
+			audit_result = "error"
 	elif parts[0] == "event" and parts.size() >= 2 and parts[1] == "blackout":
-		energy = max(0, energy - 12)
-		output += "\nok: 停电事件已启动"
+		if _has_role("director") and _start_event("blackout"):
+			output += "\nok: 停电事件已启动"
+		else:
+			output += "\nerror: 需要 director 权限或事件不存在"
+			audit_result = "denied"
 	elif parts[0] == "gate" and parts.size() >= 2 and parts[1] == "open":
-		gate_open = true
-		output += "\nok: 纪念碑通路已打开"
+		if _has_role("director"):
+			gate_open = true
+			output += "\nok: 纪念碑通路已打开"
+		else:
+			output += "\nerror: 需要 director 权限"
+			audit_result = "denied"
+	elif parts[0] == "world" and parts.size() >= 3 and parts[1] == "snapshot":
+		if not _has_role("admin"):
+			output += "\nerror: 需要 admin 权限"
+			audit_result = "denied"
+		elif save_manager.save_snapshot(parts[2], _world_state()):
+			output += "\nok: 快照已保存"
+		else:
+			output += "\nerror: 快照保存失败"
+			audit_result = "error"
+	elif parts[0] == "world" and parts.size() >= 3 and parts[1] == "rollback":
+		if not _has_role("admin"):
+			output += "\nerror: 需要 admin 权限"
+			audit_result = "denied"
+		else:
+			var restored_state := save_manager.load_snapshot(parts[2])
+			if restored_state.is_empty():
+				output += "\nerror: 快照不存在"
+				audit_result = "error"
+			else:
+				_apply_world_state(restored_state)
+				output += "\nok: 世界已回滚"
+	elif parts[0] == "world" and parts.size() >= 2 and parts[1] == "snapshots":
+		output += "\n" + ", ".join(save_manager.list_snapshots())
+	elif parts[0] == "audit" and parts.size() >= 2 and parts[1] == "tail":
+		var recent: Array[String] = []
+		for entry in audit_log:
+			recent.append("%s:%s" % [entry.get("operator", "?"), entry.get("command", "?")])
+		output += "\n" + " | ".join(recent)
+	elif parts[0] == "auth" and parts.size() >= 3 and parts[1] == "role":
+		if not _has_role("admin") or _role_level(parts[2]) == 0:
+			output += "\nerror: 需要 admin 权限或角色无效"
+			audit_result = "denied"
+		else:
+			operator_role = parts[2]
+			output += "\nok: 当前角色=%s" % operator_role
+	elif parts[0] == "spawn" and parts.size() >= 4 and parts[1] == "scrap":
+		if not _has_role("admin"):
+			output += "\nerror: 需要 admin 权限"
+			audit_result = "denied"
+		else:
+			var point := Vector3(float(parts[2]), 0.0, float(parts[3]))
+			debris.append({"position": point, "taken": false})
+			_add_marker(point + Vector3(0.0, 0.35, 0.0), Color("d3a552"), "废料")
+			output += "\nok: 生成废料于 %s" % point
 	else:
 		output += "\nerror: 未知命令，输入 help。"
+		audit_result = "error"
+	_audit(cmd, audit_result)
 	command_log.text = output
 	command_line.clear()
 
@@ -353,3 +552,5 @@ func _update_ui() -> void:
 	var minute := int(minutes) % 60
 	time_label.text = "第 %d 天 %02d:%02d" % [day, hour, minute]
 	stats_label.text = "废料 %d    能量 %d    核心 %d/3    幸存者 %d\n生命 %.0f    饥饿 %.0f    口渴 %.0f    疲劳 %.0f" % [scrap, energy, cores, 2 if survivor_rescued else 1, health, hunger, thirst, fatigue]
+	if cli_title_label:
+		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]

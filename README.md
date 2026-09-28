@@ -9,6 +9,8 @@
 - 引擎：Godot 4.x
 - 运行：打开本目录并运行 `project.godot`
 - CLI / AI：通过同一套受控命令接口读取或改变世界
+- Mod：`mods/<id>/manifest.json` + `content.json`，支持 `extends` 继承和覆盖
+- 存档：管理员可以创建 JSON 快照并回滚开发世界
 - 开源策略：代码、游戏数据、第三方代码和第三方素材分开记录许可证
 
 文档：
@@ -18,3 +20,4 @@
 - [开源引用矩阵](REFERENCE_MATRIX.md)
 - [第三方声明](THIRD_PARTY_NOTICES.md)
 - [Godot MCP 配置示例](.mcp.json.example)
+- [开源生态推进路线](OPEN_SOURCE_ROADMAP.md)

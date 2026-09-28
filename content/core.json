@@ -5,5 +5,20 @@
   },
   "recipes": {
     "energy_core": { "scrap": 2, "energy": 5 }
+  },
+  "events": {
+    "blackout": {
+      "display_name": "区域停电",
+      "duration_minutes": 180,
+      "energy_loss": 12,
+      "message": "城市电网进入黑暗，感染者开始向声音聚集。"
+    },
+    "horde": {
+      "display_name": "感染者潮",
+      "duration_minutes": 240,
+      "zombie_speed_multiplier": 1.65,
+      "spawn_count": 2,
+      "message": "远处传来密集脚步声，感染者潮正在逼近。"
+    }
   }
 }
