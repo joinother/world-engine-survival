@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "godot": {
+      "command": "/absolute/path/to/project/.tools/godot-mcp/target/release/godot-mcp",
+      "args": [],
+      "env": {
+        "GODOT_PATH": "/opt/homebrew/bin/godot",
+        "GODOT_DEBUG_PORT": "9333"
+      }
+    }
+  }
+}
