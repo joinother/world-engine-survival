@@ -1,8 +1,10 @@
 extends Node3D
 
 const Player = preload("res://scripts/player.gd")
+const ContentRegistry = preload("res://scripts/content_registry.gd")
 
 var player: CharacterBody3D
+var content: ContentRegistry
 var scrap := 0
 var energy := 20
 var cores := 0
@@ -27,6 +29,9 @@ var command_line: LineEdit
 var command_log: Label
 
 func _ready() -> void:
+	content = ContentRegistry.new()
+	if not content.load_pack("res://content/core.json"):
+		push_warning("content/core.json could not be loaded; using fallback values")
 	_setup_environment()
 	_setup_player()
 	_setup_ui()
@@ -217,13 +222,16 @@ func player_interact() -> void:
 	for item in debris:
 		if not item.taken and player.global_position.distance_to(item.position) < 1.8:
 			item.taken = true
-			scrap += 3
+			scrap += int(content.item("scrap").get("pickup_amount", 3))
 			_set_message("获得 3 废料。")
 			return
 	if player.global_position.distance_to(factory_position) < 2.2:
-		if scrap >= 2 and energy >= 5 and cores < 3:
-			scrap -= 2
-			energy -= 5
+		var recipe: Dictionary = content.recipe("energy_core")
+		var scrap_cost := int(recipe.get("scrap", 2))
+		var energy_cost := int(recipe.get("energy", 5))
+		if scrap >= scrap_cost and energy >= energy_cost and cores < 3:
+			scrap -= scrap_cost
+			energy -= energy_cost
 			cores += 1
 			_set_message("工厂制造了一个能量核心。")
 		else:

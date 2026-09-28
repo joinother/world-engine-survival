@@ -1,0 +1,9 @@
+{
+  "items": {
+    "scrap": { "display_name": "废料", "pickup_amount": 3 },
+    "energy_core": { "display_name": "能量核心" }
+  },
+  "recipes": {
+    "energy_core": { "scrap": 2, "energy": 5 }
+  }
+}
