@@ -37,3 +37,12 @@ The following projects are architectural references only at this stage:
 - [OpenRCT2](https://github.com/OpenRCT2/OpenRCT2): GPL-3.0 engine with a documented JavaScript plugin API; useful for versioned extensions and hot reload.
 
 No source code or assets from these projects are included in `res://`.
+
+## Asset sources under evaluation
+
+- [Kenney](https://kenney.nl/assets): official support guidance states game assets are public-domain CC0.
+- [Poly Haven](https://polyhaven.com/license): models, textures and HDRIs are CC0; the website and API still have separate terms.
+- [Quaternius](https://github.com/Quaternius/quaternius.github.io/blob/main/license.html): use the current QAL or the exact license attached to each asset pack; do not redistribute raw packs as standalone assets.
+- [Freesound](https://freesound.org/): every sound is reviewed individually because the library contains multiple licenses.
+
+No external asset has been imported into the runtime yet. The tracking file is `assets/ASSET_MANIFEST.json`.

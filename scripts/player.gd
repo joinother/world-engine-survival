@@ -41,6 +41,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_E:
 		if world:
 			world.player_interact()
+	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
+		if world:
+			world.player_attack()
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if world:
+			world.player_attack()
 
 func _physics_process(_delta: float) -> void:
 	var input_vec := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")

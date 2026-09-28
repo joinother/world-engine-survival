@@ -22,3 +22,4 @@
 - [第三方声明](THIRD_PARTY_NOTICES.md)
 - [Godot MCP 配置示例](.mcp.json.example)
 - [开源生态推进路线](OPEN_SOURCE_ROADMAP.md)
+- [开源资产管线](ASSET_PIPELINE.md)

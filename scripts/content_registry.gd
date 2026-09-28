@@ -81,6 +81,9 @@ func recipe(id: String) -> Dictionary:
 func event(id: String) -> Dictionary:
 	return pack.get("events", {}).get(id, {})
 
+func rule(id: String) -> Dictionary:
+	return pack.get("rules", {}).get(id, {})
+
 func ids(section_name: String) -> Array[String]:
 	var result: Array[String] = []
 	var section: Dictionary = pack.get(section_name, {})

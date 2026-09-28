@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "policy": "Every imported asset requires provenance, license, source URL and hash.",
+  "planned_sources": [
+    {"id": "kenney", "license": "CC0 per asset page", "status": "candidate"},
+    {"id": "polyhaven", "license": "CC0", "status": "candidate"},
+    {"id": "quaternius", "license": "QAL or CC0 per asset", "status": "candidate"},
+    {"id": "opengameart", "license": "review per asset", "status": "candidate"},
+    {"id": "freesound", "license": "review per sound", "status": "candidate"}
+  ],
+  "imported": []
+}

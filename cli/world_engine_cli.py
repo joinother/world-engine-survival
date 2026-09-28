@@ -27,6 +27,7 @@ def main() -> int:
     parser.add_argument("--role", choices=("player", "director", "admin"), default="player")
     subparsers = parser.add_subparsers(dest="action", required=True)
     subparsers.add_parser("state")
+    subparsers.add_parser("attack")
     observe = subparsers.add_parser("observe")
     observe.add_argument("--radius", type=float, default=12.0)
     subparsers.add_parser("content")
@@ -46,6 +47,8 @@ def main() -> int:
     params: dict[str, Any] = {"role": args.role}
     if args.action == "state":
         method = "world.state"
+    elif args.action == "attack":
+        method = "player.attack"
     elif args.action == "observe":
         method = "player.observe"
         params["radius"] = args.radius

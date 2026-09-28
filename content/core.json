@@ -1,7 +1,14 @@
 {
   "items": {
     "scrap": { "display_name": "废料", "pickup_amount": 3 },
-    "energy_core": { "display_name": "能量核心" }
+    "energy_core": { "display_name": "能量核心" },
+    "improvised_club": {
+      "display_name": "临时木棍",
+      "category": "weapon",
+      "damage": 35,
+      "range": 2.4,
+      "knockback": 3.5
+    }
   },
   "recipes": {
     "energy_core": { "scrap": 2, "energy": 5 }
@@ -19,6 +26,29 @@
       "zombie_speed_multiplier": 1.65,
       "spawn_count": 2,
       "message": "远处传来密集脚步声，感染者潮正在逼近。"
+    }
+  },
+  "rules": {
+    "survival": {
+      "hunger_per_minute": 0.035,
+      "thirst_per_minute": 0.05,
+      "fatigue_per_minute": 0.028,
+      "starvation_damage_per_minute": 0.02,
+      "exhaustion_damage_per_minute": 0.01
+    },
+    "combat": {
+      "zombie_contact_damage_per_second": 4.0,
+      "contact_range": 1.25,
+      "attack_damage": 35,
+      "attack_range": 2.4,
+      "attack_cooldown": 0.55,
+      "knockback": 3.5,
+      "zombie_health": 100,
+      "bleeding_per_contact": 8.0,
+      "infection_per_contact": 1.5
+    },
+    "world": {
+      "zombie_speed": 0.8
     }
   }
 }
