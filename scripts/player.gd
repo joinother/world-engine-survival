@@ -44,6 +44,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	var input_vec := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if Input.is_physical_key_pressed(KEY_A):
+		input_vec.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D):
+		input_vec.x += 1.0
+	if Input.is_physical_key_pressed(KEY_W):
+		input_vec.y -= 1.0
+	if Input.is_physical_key_pressed(KEY_S):
+		input_vec.y += 1.0
+	input_vec = input_vec.limit_length(1.0)
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
 	var direction := (right * input_vec.x + forward * input_vec.y).normalized()
