@@ -3,10 +3,12 @@ extends Node3D
 const Player = preload("res://scripts/player.gd")
 const ContentRegistry = preload("res://scripts/content_registry.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
+const CommandServer = preload("res://scripts/command_server.gd")
 
 var player: CharacterBody3D
 var content: ContentRegistry
 var save_manager: SaveManager
+var command_server: CommandServer
 var operator_role := "admin"
 var active_events: Dictionary = {}
 var audit_log: Array[Dictionary] = []
@@ -42,6 +44,7 @@ var message_label: Label
 var command_line: LineEdit
 var command_log: Label
 var cli_title_label: Label
+var last_command_output := ""
 
 func _ready() -> void:
 	content = ContentRegistry.new()
@@ -52,6 +55,10 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_player()
 	_setup_ui()
+	command_server = CommandServer.new()
+	command_server.request_received.connect(_handle_rpc_request)
+	add_child(command_server)
+	command_server.start(9555)
 	_set_message("%s 已加载 %d 个内容源。" % [message, content.sources.size()])
 
 func _process(delta: float) -> void:
@@ -382,6 +389,112 @@ func _audit(command: String, result: String) -> void:
 	if audit_log.size() > 32:
 		audit_log.pop_front()
 
+func _observe_state(radius: float = 12.0) -> Dictionary:
+	var observation := {
+		"day": day,
+		"minutes": minutes,
+		"player_position": {"x": player.global_position.x, "y": player.global_position.y, "z": player.global_position.z},
+		"scrap": scrap,
+		"food": food,
+		"water": water,
+		"health": health,
+		"hunger": hunger,
+		"thirst": thirst,
+		"fatigue": fatigue,
+		"survivor_rescued": survivor_rescued
+	}
+	var threats: Array[Dictionary] = []
+	for index in range(zombie_positions.size()):
+		var point: Vector3 = zombie_positions[index]
+		if point.distance_to(player.global_position) <= radius:
+			threats.append({"x": point.x, "y": point.y, "z": point.z, "distance": point.distance_to(player.global_position)})
+	var nearby_items: Array[Dictionary] = []
+	for item in debris:
+		if bool(item.get("taken", false)):
+			var point: Vector3 = item.get("position", Vector3.ZERO)
+			if point.distance_to(player.global_position) <= radius:
+				nearby_items.append({"type": "scrap", "x": point.x, "y": point.y, "z": point.z})
+	observation["nearby_threats"] = threats
+	observation["nearby_items"] = nearby_items
+	observation["operator_role"] = operator_role
+	return observation
+
+func _rpc_error(request_id, code: int, message_text: String) -> Dictionary:
+	return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message_text}}
+
+func _handle_rpc_request(line: String, peer: StreamPeerTCP) -> void:
+	var request_id = null
+	var parsed = JSON.parse_string(line)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		command_server.send_json(peer, _rpc_error(request_id, -32700, "invalid JSON"))
+		return
+	var request: Dictionary = parsed
+	request_id = request.get("id", null)
+	if str(request.get("jsonrpc", "2.0")) != "2.0":
+		command_server.send_json(peer, _rpc_error(request_id, -32600, "jsonrpc must be 2.0"))
+		return
+	var method := str(request.get("method", ""))
+	var params: Dictionary = request.get("params", {})
+	if typeof(params) != TYPE_DICTIONARY:
+		command_server.send_json(peer, _rpc_error(request_id, -32602, "params must be an object"))
+		return
+	var requested_role := str(params.get("role", "player"))
+	if _role_level(requested_role) == 0:
+		command_server.send_json(peer, _rpc_error(request_id, -32602, "unknown role"))
+		return
+	var previous_role := operator_role
+	operator_role = requested_role
+	var result: Dictionary = _dispatch_rpc(method, params)
+	operator_role = previous_role
+	command_server.send_json(peer, {"jsonrpc": "2.0", "id": request_id, "result": result})
+
+func _dispatch_rpc(method: String, params: Dictionary) -> Dictionary:
+	match method:
+		"world.state":
+			return {"ok": true, "state": _world_state() if _has_role("director") else _observe_state()}
+		"player.observe":
+			return {"ok": true, "observation": _observe_state(float(params.get("radius", 12.0)))}
+		"world.content":
+			return {"ok": true, "sources": content.sources, "items": content.ids("items"), "recipes": content.ids("recipes"), "events": content.ids("events")}
+		"world.command":
+			var raw_command := str(params.get("command", ""))
+			if raw_command.is_empty():
+				return {"ok": false, "error": "command is required"}
+			_run_command(raw_command)
+			return {"ok": not last_command_output.contains("\nerror:"), "output": last_command_output}
+		"time.advance":
+			if not _has_role("director"):
+				return {"ok": false, "error": "director role required"}
+			var game_minutes: float = max(0.0, float(params.get("minutes", 0.0)))
+			_advance_clock(game_minutes)
+			_update_survival(game_minutes)
+			_update_events(game_minutes)
+			_audit("time.advance %s" % game_minutes, "ok")
+			return {"ok": true, "minutes": game_minutes, "state": _world_state()}
+		"event.start":
+			if not _has_role("director"):
+				return {"ok": false, "error": "director role required"}
+			var event_id := str(params.get("id", ""))
+			return {"ok": _start_event(event_id), "active": active_events}
+		"world.snapshot":
+			if not _has_role("admin"):
+				return {"ok": false, "error": "admin role required"}
+			var snapshot_name := str(params.get("name", "quick_save"))
+			return {"ok": save_manager.save_snapshot(snapshot_name, _world_state()), "name": snapshot_name}
+		"world.rollback":
+			if not _has_role("admin"):
+				return {"ok": false, "error": "admin role required"}
+			var restore_name := str(params.get("name", "quick_save"))
+			var restored := save_manager.load_snapshot(restore_name)
+			if restored.is_empty():
+				return {"ok": false, "error": "snapshot not found"}
+			_apply_world_state(restored)
+			return {"ok": true, "state": _world_state()}
+		"world.snapshots":
+			return {"ok": true, "snapshots": save_manager.list_snapshots()}
+		_:
+			return {"ok": false, "error": "unknown method"}
+
 func player_interact() -> void:
 	if game_over or game_won:
 		return
@@ -537,6 +650,7 @@ func _run_command(raw: String) -> void:
 		output += "\nerror: 未知命令，输入 help。"
 		audit_result = "error"
 	_audit(cmd, audit_result)
+	last_command_output = output
 	command_log.text = output
 	command_line.clear()
 

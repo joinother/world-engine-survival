@@ -46,6 +46,36 @@ audit tail
 
 权限会在命令执行前检查：`player` 只能观察和执行生存动作，`director` 可以推进时间和启动事件，`admin` 才能生成实体、创建快照、回滚世界和切换角色。每条命令都会保留操作者、命令、结果和世界时间。
 
+## 本地 JSON-RPC
+
+运行游戏后，Godot 会只在 `127.0.0.1:9555` 监听换行分隔的 JSON-RPC 2.0 请求。服务端和游戏内 CLI 走同一套权限与审计逻辑。
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"player.observe","params":{"role":"player","radius":12}}
+```
+
+可用方法包括：
+
+- `world.state`
+- `player.observe`
+- `world.content`
+- `world.command`
+- `time.advance`
+- `event.start`
+- `world.snapshot`
+- `world.rollback`
+- `world.snapshots`
+
+仓库内的 Python 客户端只使用标准库：
+
+```bash
+python3 cli/world_engine_cli.py observe
+python3 cli/world_engine_cli.py --role director advance 60
+python3 cli/world_engine_cli.py --role admin snapshot before_outbreak
+```
+
+当前端口只绑定本机，适合开发和 AI 沙盒。多人服务器阶段需要增加身份认证、连接级权限和速率限制，不能直接把这个开发端口暴露到公网。
+
 ## 安全规则
 
 - 命令使用 JSON-RPC 或本地 Unix socket 传输；
