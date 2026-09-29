@@ -1,7 +1,9 @@
 {
   "items": {
-    "scrap": { "display_name": "废料", "pickup_amount": 3 },
-    "energy_core": { "display_name": "能量核心" },
+    "scrap": {
+      "display_name": "废料",
+      "pickup_amount": 3
+    },
     "improvised_club": {
       "display_name": "临时木棍",
       "category": "weapon",
@@ -10,16 +12,8 @@
       "knockback": 3.5
     }
   },
-  "recipes": {
-    "energy_core": { "scrap": 2, "energy": 5 }
-  },
+  "recipes": {},
   "events": {
-    "blackout": {
-      "display_name": "区域停电",
-      "duration_minutes": 180,
-      "energy_loss": 12,
-      "message": "城市电网进入黑暗，感染者开始向声音聚集。"
-    },
     "horde": {
       "display_name": "感染者潮",
       "duration_minutes": 240,

@@ -90,23 +90,8 @@ static func district(parent: Node3D) -> void:
 	box(parent, Vector3(0,0.45,-19), Vector3(39,0.08,0.08), Color("7b806b"))
 	box(parent, Vector3(0,1.1,-19), Vector3(39,0.08,0.08), Color("7b806b"))
 
-static func prop(parent: Node3D, kind: String, color: Color) -> void:
-	match kind:
-		"废料":
-			box(parent, Vector3(0,0.25,0), Vector3(0.9,0.5,0.7), Color("887153"))
-			for x in [-0.3,0.3]:
-				box(parent, Vector3(x,0.26,0), Vector3(0.09,0.55,0.74), Color("c0aa7c"))
-		"工厂":
-			box(parent, Vector3(0,0.55,0), Vector3(1.7,1.1,1.1), Color("71877d"))
-			for x in [-0.5, 0.0, 0.5]:
-				cylinder(parent, Vector3(x,1.2,0), 0.18, 0.4, Color("bba772"))
-			box(parent, Vector3(0,0.65,0.57), Vector3(0.75,0.32,0.06), color)
-		"纪念碑机关":
-			box(parent, Vector3(0,0.6,0), Vector3(0.7,1.2,0.5), Color("485a62"))
-			box(parent, Vector3(0,1,0.27), Vector3(0.45,0.3,0.04), color)
-		"传送门":
-			cylinder(parent, Vector3(0,0.08,0), 2.0, 0.12, Color("768079"))
-			box(parent, Vector3(0,0.16,0), Vector3(2.8,0.03,0.18), Color("d8ca86"))
-			for x in [-1.4,1.4]:
-				box(parent, Vector3(x,0.16,0), Vector3(0.18,0.03,2.3), Color("d8ca86"))
-				box(parent, Vector3(x,0.5,-1.6), Vector3(0.14,1.0,0.14), color)
+static func prop(parent: Node3D, kind: String, _color: Color) -> void:
+	if kind == "废料":
+		box(parent, Vector3(0,0.25,0), Vector3(0.9,0.5,0.7), Color("887153"))
+		for x in [-0.3,0.3]:
+			box(parent, Vector3(x,0.26,0), Vector3(0.09,0.55,0.74), Color("c0aa7c"))

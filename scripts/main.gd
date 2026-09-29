@@ -19,8 +19,6 @@ var zombie_health: Array[float] = []
 var attack_cooldown_remaining := 0.0
 var damage_cooldown_remaining := 0.0
 var scrap := 0
-var energy := 20
-var cores := 0
 var food := 2
 var water := 3
 var hunger := 100.0
@@ -32,19 +30,13 @@ var infection := 0.0
 var bandages := 2
 var day := 1
 var minutes := 8 * 60.0
-var gate_open := false
 var game_over := false
 var game_won := false
 var debris: Array[Dictionary] = []
+var interaction_points: Array[Dictionary] = []
 var zombies: Array[Node3D] = []
 var zombie_positions: Array[Vector3] = []
-var survivor_position := Vector3(-7.0, 0.0, 7.0)
-var survivor_node: Node3D
-var survivor_rescued := false
-var factory_position := Vector3(-5.0, 0.0, 2.0)
-var portal_position := Vector3(13.0, 0.0, -12.0)
-var gate_position := Vector3(4.0, 0.0, 3.0)
-var message := "WASD 移动，鼠标拖动自由视角，E 互动。"
+var message := "WASD 移动，左键点击物件，E 互动。"
 var time_label: Label
 var objective_label: Label
 var stats_label: Label
@@ -71,14 +63,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not game_over and not game_won:
-		_advance_clock(delta * 2.0)
-		_update_survival(delta * 2.0)
-		_update_events(delta * 2.0)
+		_advance_clock(delta * 0.25)
+		_update_survival(delta * 0.25)
+		_update_events(delta * 0.25)
 		_update_zombies(delta)
 		attack_cooldown_remaining = max(0.0, attack_cooldown_remaining - delta)
 		damage_cooldown_remaining = max(0.0, damage_cooldown_remaining - delta)
-		_update_survivor(delta)
-		_update_energy(delta)
 	_update_ui()
 
 func _setup_environment() -> void:
@@ -113,15 +103,11 @@ func _setup_environment() -> void:
 
 	_add_box(Vector3(0.0, -0.3, 0.0), Vector3(40.0, 0.5, 40.0), Color("172a2a"), true)
 	SceneArt.district(self)
-	for x in range(-16, 17, 4):
-		_add_box(Vector3(x, 0.02, 0.0), Vector3(0.06, 0.03, 38.0), Color("284142"), false)
-	for z in range(-16, 17, 4):
-		_add_box(Vector3(0.0, 0.025, z), Vector3(38.0, 0.03, 0.06), Color("284142"), false)
 	# Kenney road segments are the visual source of truth for the drivable lanes.
 	for x in [-14.0, -8.0, -2.0, 4.0, 10.0, 16.0]:
 		_add_asset("res://assets/kenney/city-kit-roads/road-straight.glb", Vector3(x, 0.02, 2.0), Vector3(6.0, 0.18, 6.0), 0.0)
 
-	# 街区建筑：保留几何通道，方便测试自由视角和遮挡。
+	# 街区建筑：给固定俯视镜头提供清晰的街道、遮挡和可搜刮目标。
 	_add_building(Vector3(-12.0, 2.0, -10.0), Vector3(7.0, 4.0, 6.0), Color("3d5864"))
 	_add_building(Vector3(-2.0, 3.0, -11.0), Vector3(6.0, 6.0, 7.0), Color("455664"))
 	_add_building(Vector3(9.0, 2.5, -4.0), Vector3(8.0, 5.0, 5.0), Color("4c526a"))
@@ -134,15 +120,13 @@ func _setup_environment() -> void:
 	for point in [Vector3(-1.0, 0.0, 3.0), Vector3(7.0, 0.0, 5.0)]:
 		_add_barricade(point)
 
-	_add_marker(factory_position + Vector3(0.0, 0.8, 0.0), Color("a47ce8"), "工厂")
-	_add_marker(portal_position + Vector3(0.0, 0.6, 0.0), Color("5ee7f4"), "传送门")
-	_add_marker(gate_position + Vector3(0.0, 0.45, 0.0), Color("dc9cff"), "纪念碑机关")
-	survivor_node = _add_marker(survivor_position + Vector3(0.0, 0.55, 0.0), Color("76f6d2"), "幸存者")
+	_add_interaction_point(Vector3(-12.0, 0.0, 13.0), "safehouse", "安全屋·门", Color("76c7a8"))
+	_add_interaction_point(Vector3(11.0, 0.0, 8.0), "dumpster", "垃圾桶", Color("8aa0a5"))
 
 	var debris_points := [Vector3(-8,0,6), Vector3(-3,0,-4), Vector3(2,0,8), Vector3(8,0,4), Vector3(15,0,-8), Vector3(-15,0,2)]
 	for point in debris_points:
 		debris.append({"position": point, "taken": false})
-		_add_marker(point + Vector3(0.0, 0.35, 0.0), Color("d3a552"), "废料")
+		_add_interaction_point(point, "debris:%d" % (debris.size() - 1), "搜刮点", Color("d3a552"))
 
 	for point in [Vector3(16,0,0), Vector3(11,0,11), Vector3(-6,0,-16), Vector3(17,0,-5)]:
 		var zombie := _add_marker(point + Vector3(0.0, 0.8, 0.0), Color("ef5b62"), "感染者")
@@ -188,7 +172,7 @@ func _setup_ui() -> void:
 	panel.add_child(message_label)
 	var help := Label.new()
 	help.position = Vector2(20, 284)
-	help.text = "WASD 移动 · 空格/左键挥击 · E 互动 · Esc 释放鼠标"
+	help.text = "WASD 移动 · 左键点击物件 · 空格/右键攻击 · E 互动"
 	help.modulate = Color("9eacbb")
 	panel.add_child(help)
 
@@ -212,7 +196,7 @@ func _setup_ui() -> void:
 	command_line = LineEdit.new()
 	command_line.position = Vector2(14, 84)
 	command_line.size = Vector2(560, 28)
-	command_line.placeholder_text = "state / spawn scrap 4 4 / event blackout / gate open"
+	command_line.placeholder_text = "state / needs / use food / use water / event start horde"
 	command_line.text_submitted.connect(_run_command)
 	cli_panel.add_child(command_line)
 	var run_button := Button.new()
@@ -327,10 +311,10 @@ func _add_box(pos: Vector3, size: Vector3, color: Color, solid: bool) -> Node3D:
 	add_child(node)
 	return node
 
-func _add_marker(pos: Vector3, color: Color, _label: String) -> Node3D:
+func _add_marker(pos: Vector3, color: Color, label_text: String) -> Node3D:
 	var node := Node3D.new()
 	node.position = pos
-	if _label == "感染者":
+	if label_text == "感染者":
 		var zombie_scene := load("res://assets/kenney/blocky-characters/character-a.glb") as PackedScene
 		if zombie_scene:
 			var zombie_model := zombie_scene.instantiate() as Node3D
@@ -339,43 +323,18 @@ func _add_marker(pos: Vector3, color: Color, _label: String) -> Node3D:
 			node.add_child(zombie_model)
 		else:
 			SceneArt.human(node, Color("6e6258"))
-	elif _label == "幸存者":
-		var survivor_scene := load("res://assets/kenney/blocky-characters/character-r.glb") as PackedScene
-		if survivor_scene:
-			var survivor_model := survivor_scene.instantiate() as Node3D
-			survivor_model.position = Vector3(0.0, 0.22, 0.0)
-			survivor_model.scale = Vector3(0.22, 0.22, 0.22)
-			node.add_child(survivor_model)
-		else:
-			SceneArt.human(node, Color("6fc4ae"))
-	elif _label in ["废料", "工厂", "传送门", "纪念碑机关"]:
-		SceneArt.prop(node, _label, color)
-	if _label in ["工厂", "传送门", "纪念碑机关", "幸存者"]:
-		var beacon := MeshInstance3D.new()
-		var beacon_mesh := CylinderMesh.new()
-		beacon_mesh.top_radius = 0.05
-		beacon_mesh.bottom_radius = 0.16
-		beacon_mesh.height = 2.2
-		beacon.mesh = beacon_mesh
-		beacon.position.y = 1.0
-		beacon.material_override = _material(Color(color, 0.55))
-		node.add_child(beacon)
-		var lamp := OmniLight3D.new()
-		lamp.light_color = color
-		lamp.light_energy = 1.4
-		lamp.omni_range = 4.5
-		lamp.position.y = 1.8
-		node.add_child(lamp)
-	var mesh := MeshInstance3D.new()
+	else:
+		SceneArt.prop(node, "废料", color)
+	var marker := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.45
 	sphere.height = 0.9
-	mesh.mesh = sphere
-	mesh.material_override = _material(color)
-	mesh.visible = _label in ["感染者", "幸存者"]
-	node.add_child(mesh)
+	marker.mesh = sphere
+	marker.material_override = _material(color)
+	marker.visible = label_text == "感染者"
+	node.add_child(marker)
 	var label := Label3D.new()
-	label.text = _label
+	label.text = label_text
 	label.position = Vector3(0.0, 1.25, 0.0)
 	label.font_size = 32
 	label.outline_size = 8
@@ -384,6 +343,44 @@ func _add_marker(pos: Vector3, color: Color, _label: String) -> Node3D:
 	node.add_child(label)
 	add_child(node)
 	return node
+
+func _add_interaction_point(pos: Vector3, interaction_id: String, label_text: String, color: Color) -> void:
+	var node := Node3D.new()
+	node.position = pos
+	if interaction_id == "dumpster":
+		var dumpster := _instantiate_asset_under(node, "res://assets/kenney/city-kit-roads/dumpster.glb", Vector3(0.0, 0.45, 0.0), Vector3(0.7, 0.7, 0.7))
+		if not dumpster:
+			SceneArt.prop(node, "废料", color)
+	elif interaction_id == "safehouse":
+		var door := MeshInstance3D.new()
+		var door_mesh := BoxMesh.new()
+		door_mesh.size = Vector3(0.9, 1.8, 0.12)
+		door.mesh = door_mesh
+		door.position = Vector3(0.0, 0.9, 0.0)
+		door.material_override = _material(Color("6b8c7c"))
+		node.add_child(door)
+	else:
+		SceneArt.prop(node, "废料", color)
+	var label := Label3D.new()
+	label.text = label_text
+	label.position = Vector3(0.0, 1.55, 0.0)
+	label.font_size = 28
+	label.outline_size = 7
+	label.modulate = color.lightened(0.25)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	node.add_child(label)
+	add_child(node)
+	interaction_points.append({"id": interaction_id, "position": pos, "label": label_text})
+
+func _instantiate_asset_under(parent: Node3D, path: String, pos: Vector3, asset_scale: Vector3) -> Node3D:
+	var packed := load(path) as PackedScene
+	if not packed:
+		return null
+	var instance := packed.instantiate() as Node3D
+	instance.position = pos
+	instance.scale = asset_scale
+	parent.add_child(instance)
+	return instance
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -415,7 +412,7 @@ func _update_zombies(delta: float) -> void:
 		bleeding = min(100.0, bleeding + nearby_count * float(combat_rules.get("bleeding_per_contact", 8.0)) * delta)
 		infection = min(100.0, infection + nearby_count * float(combat_rules.get("infection_per_contact", 1.5)) * delta)
 		damage_cooldown_remaining = 0.25
-		_set_message("感染者正在撕扯你：按空格或鼠标左键挥击，然后立刻逃离。")
+		_set_message("感染者正在撕扯你：按空格或鼠标右键挥击，然后立刻逃离。")
 		if health <= 0.0:
 			game_over = true
 			_set_message("你因伤势过重倒下了。世界仍会保留这次失败的快照。")
@@ -475,8 +472,6 @@ func _start_event(event_id: String) -> bool:
 		return false
 	var duration := float(event.get("duration_minutes", 60.0))
 	active_events[event_id] = {"remaining_minutes": duration}
-	if event_id == "blackout":
-		energy = max(0, energy - int(event.get("energy_loss", 0)))
 	if event_id == "horde":
 		_spawn_zombies(int(event.get("spawn_count", 0)))
 		zombie_speed_multiplier = max(1.0, float(event.get("zombie_speed_multiplier", 1.0)))
@@ -525,18 +520,6 @@ func _update_survival(game_minutes: float) -> void:
 		game_over = true
 		_set_message("你因长期缺乏食物、水或休息而倒下了。")
 
-func _update_survivor(delta: float) -> void:
-	if not survivor_node or not survivor_rescued:
-		return
-	var target := player.global_position - Vector3(0.0, 0.0, 1.3)
-	var offset := target - survivor_node.position
-	if offset.length() > 1.2:
-		survivor_node.position += offset.normalized() * delta * 3.0
-	survivor_position = survivor_node.position
-
-func _update_energy(delta: float) -> void:
-	energy = clamp(energy + delta * 0.03, 0, 100)
-
 func _world_state() -> Dictionary:
 	var debris_state: Array[Dictionary] = []
 	for item in debris:
@@ -553,8 +536,6 @@ func _world_state() -> Dictionary:
 		"day": day,
 		"minutes": minutes,
 		"scrap": scrap,
-		"energy": energy,
-		"cores": cores,
 		"food": food,
 		"water": water,
 		"hunger": hunger,
@@ -564,8 +545,6 @@ func _world_state() -> Dictionary:
 		"bleeding": bleeding,
 		"infection": infection,
 		"bandages": bandages,
-		"gate_open": gate_open,
-		"survivor_rescued": survivor_rescued,
 		"zombie_count": zombies.size(),
 		"zombies": zombie_state,
 		"weapon": "improvised_club",
@@ -578,8 +557,6 @@ func _apply_world_state(state: Dictionary) -> void:
 	day = int(state.get("day", day))
 	minutes = float(state.get("minutes", minutes))
 	scrap = int(state.get("scrap", scrap))
-	energy = int(state.get("energy", energy))
-	cores = int(state.get("cores", cores))
 	food = int(state.get("food", food))
 	water = int(state.get("water", water))
 	hunger = float(state.get("hunger", hunger))
@@ -589,8 +566,6 @@ func _apply_world_state(state: Dictionary) -> void:
 	bleeding = float(state.get("bleeding", bleeding))
 	infection = float(state.get("infection", infection))
 	bandages = int(state.get("bandages", bandages))
-	gate_open = bool(state.get("gate_open", gate_open))
-	survivor_rescued = bool(state.get("survivor_rescued", survivor_rescued))
 	var saved_position: Dictionary = state.get("player_position", {})
 	if player and not saved_position.is_empty():
 		player.global_position = Vector3(float(saved_position.get("x", 0.0)), float(saved_position.get("y", 0.0)), float(saved_position.get("z", 0.0)))
@@ -654,7 +629,6 @@ func _observe_state(radius: float = 12.0) -> Dictionary:
 		"bleeding": bleeding,
 		"infection": infection,
 		"bandages": bandages,
-		"survivor_rescued": survivor_rescued
 	}
 	var threats: Array[Dictionary] = []
 	for index in range(zombie_positions.size()):
@@ -763,55 +737,61 @@ func _dispatch_rpc(method: String, params: Dictionary) -> Dictionary:
 		_:
 			return {"ok": false, "error": "unknown method"}
 
-func player_interact() -> void:
-	if game_over or game_won:
+func click_interact(screen_position: Vector2) -> void:
+	if game_over:
 		return
-	for item in debris:
-		if not item.taken and player.global_position.distance_to(item.position) < 1.8:
-			item.taken = true
+	var selected_id := ""
+	var selected_distance := 52.0
+	for point in interaction_points:
+		var world_position: Vector3 = point.get("position", Vector3.ZERO)
+		if player.global_position.distance_to(world_position) > 3.4:
+			continue
+		var projected: Vector2 = player.camera.unproject_position(world_position + Vector3(0.0, 0.8, 0.0))
+		var distance: float = projected.distance_to(screen_position)
+		if distance < selected_distance:
+			selected_distance = distance
+			selected_id = str(point.get("id", ""))
+	if selected_id.is_empty():
+		_set_message("点击靠近的门、垃圾桶或搜刮点。")
+		return
+	player_interact(selected_id)
+
+func player_interact(interaction_id: String = "") -> void:
+	if game_over:
+		return
+	if interaction_id.is_empty():
+		var nearest_distance := 2.2
+		for point in interaction_points:
+			var point_position: Vector3 = point.get("position", Vector3.ZERO)
+			var distance := player.global_position.distance_to(point_position)
+			if distance < nearest_distance:
+				nearest_distance = distance
+				interaction_id = str(point.get("id", ""))
+	if interaction_id.begins_with("debris:"):
+		var debris_index := int(interaction_id.trim_prefix("debris:"))
+		if debris_index >= 0 and debris_index < debris.size() and not debris[debris_index].taken:
+			debris[debris_index].taken = true
 			scrap += int(content.item("scrap").get("pickup_amount", 3))
-			_set_message("获得 %s。" % content.item("scrap").get("display_name", "废料"))
+			_set_message("搜刮到废料。按 E 或点击其他物件继续。")
 			return
-	if player.global_position.distance_to(Vector3(-12.0, 0.0, 10.0)) < 3.0:
+	if interaction_id == "safehouse":
 		food += 2
 		water += 2
 		bandages += 1
 		hunger = min(100.0, hunger + 40.0)
 		thirst = min(100.0, thirst + 50.0)
 		fatigue = max(0.0, fatigue - 35.0)
-		_set_message("安全屋补充了食物和水，你休息了一会儿。")
+		_set_message("安全屋门已打开：补充了食物、水和绷带。")
 		return
-	if player.global_position.distance_to(factory_position) < 2.2:
-		var recipe: Dictionary = content.recipe("energy_core")
-		var scrap_cost := int(recipe.get("scrap", 2))
-		var energy_cost := int(recipe.get("energy", 5))
-		if scrap >= scrap_cost and energy >= energy_cost and cores < 3:
-			scrap -= scrap_cost
-			energy -= energy_cost
-			cores += 1
-			_set_message("工厂制造了一个能量核心。")
+	if interaction_id == "dumpster":
+		if scrap >= 2:
+			bandages += 1
+			_set_message("垃圾桶里找到一卷绷带。")
 		else:
-			_set_message("工厂需要 %d 废料和 %d 能量。" % [scrap_cost, energy_cost])
+			scrap += 2
+			_set_message("垃圾桶里找到一些废料。")
 		return
-	if not survivor_rescued and player.global_position.distance_to(survivor_position) < 2.2:
-		survivor_rescued = true
-		_set_message("幸存者加入了队伍。")
-		return
-	if player.global_position.distance_to(gate_position) < 2.0:
-		if cores < 3 or not survivor_rescued:
-			_set_message("纪念碑机关需要 3 个能量核心和一名幸存者。")
-			return
-		gate_open = not gate_open
-		_set_message("纪念碑机关已" + ("打开，传送门路线已解锁。" if gate_open else "关闭。"))
-		return
-	if player.global_position.distance_to(portal_position) < 2.2:
-		if cores >= 3 and survivor_rescued and gate_open:
-			game_won = true
-			_set_message("传送门启动。第一片区 3D 原型完成。")
-		elif not gate_open:
-			_set_message("传送门尚未接通：先打开纪念碑机关。")
-		else:
-			_set_message("传送门需要 3 个能量核心和一名幸存者。")
+	_set_message("这里暂时没有可以交互的东西。")
 
 func _run_command(raw: String) -> void:
 	var cmd := raw.strip_edges()
@@ -821,9 +801,9 @@ func _run_command(raw: String) -> void:
 	var output := "> " + cmd
 	var audit_result := "ok"
 	if parts[0] == "help":
-		output += "\nstate | needs | content list | use food | use water | use bandage | spawn scrap x z | spawn zombie x z | time advance 分钟 | event start id | event list | gate open | world snapshot 名称 | world rollback 名称 | world snapshots | audit tail"
+		output += "\nstate | needs | content list | use food | use water | use bandage | spawn scrap x z | spawn zombie x z | time advance 分钟 | event start id | event list | world snapshot 名称 | world rollback 名称 | world snapshots | audit tail"
 	elif parts[0] == "state" or (parts[0] == "world" and parts.size() >= 2 and parts[1] == "state"):
-		output += "\nday=%d time=%02d:%02d scrap=%d energy=%d cores=%d survivor=%s" % [day, int(minutes / 60.0), int(minutes) % 60, scrap, energy, cores, survivor_rescued]
+		output += "\nday=%d time=%02d:%02d health=%.0f hunger=%.0f thirst=%.0f food=%d water=%d bandages=%d" % [day, int(minutes / 60.0), int(minutes) % 60, health, hunger, thirst, food, water, bandages]
 	elif parts[0] == "needs":
 		output += "\nhealth=%.0f hunger=%.0f thirst=%.0f fatigue=%.0f bleeding=%.0f infection=%.0f food=%d water=%d bandages=%d" % [health, hunger, thirst, fatigue, bleeding, infection, food, water, bandages]
 	elif parts[0] == "content" and parts.size() >= 2 and parts[1] == "list":
@@ -871,19 +851,6 @@ func _run_command(raw: String) -> void:
 		else:
 			output += "\nerror: 未知事件"
 			audit_result = "error"
-	elif parts[0] == "event" and parts.size() >= 2 and parts[1] == "blackout":
-		if _has_role("director") and _start_event("blackout"):
-			output += "\nok: 停电事件已启动"
-		else:
-			output += "\nerror: 需要 director 权限或事件不存在"
-			audit_result = "denied"
-	elif parts[0] == "gate" and parts.size() >= 2 and parts[1] == "open":
-		if _has_role("director"):
-			gate_open = true
-			output += "\nok: 纪念碑通路已打开"
-		else:
-			output += "\nerror: 需要 director 权限"
-			audit_result = "denied"
 	elif parts[0] == "world" and parts.size() >= 3 and parts[1] == "snapshot":
 		if not _has_role("admin"):
 			output += "\nerror: 需要 admin 权限"
@@ -952,30 +919,21 @@ func _update_ui() -> void:
 	var minute := int(minutes) % 60
 	time_label.text = "第 %d 天 %02d:%02d" % [day, hour, minute]
 	objective_label.text = _objective_text()
-	stats_label.text = "废料 %d    能量 %d    核心 %d/3    幸存者 %d\n生命 %.0f    饥饿 %.0f    口渴 %.0f    疲劳 %.0f\n出血 %.0f    感染 %.0f    绷带 %d\n武器：临时木棍" % [scrap, energy, cores, 2 if survivor_rescued else 1, health, hunger, thirst, fatigue, bleeding, infection, bandages]
+	stats_label.text = "生命 %.0f    饥饿 %.0f    口渴 %.0f    疲劳 %.0f\n食物 %d    净水 %d    绷带 %d    废料 %d\n出血 %.0f    感染 %.0f\n武器：临时木棍" % [health, hunger, thirst, fatigue, food, water, bandages, scrap, bleeding, infection]
 	if cli_title_label:
 		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]
 
 func _objective_text() -> String:
-	var target := player.global_position
-	if scrap < 6:
-		var nearest_distance := INF
-		for item in debris:
-			if not bool(item.get("taken", false)):
-				var item_position: Vector3 = item.get("position", player.global_position)
-				var item_distance := player.global_position.distance_to(item_position)
-				if item_distance < nearest_distance:
-					nearest_distance = item_distance
-					target = item_position
-		return "目标 1/4：搜集废料 %d/6 · 距离 %.0fm" % [min(scrap, 6), player.global_position.distance_to(target)]
-	if cores < 3:
-		target = factory_position
-		return "目标 2/4：工厂制造能量核心 %d/3 · 距离 %.0fm" % [cores, player.global_position.distance_to(target)]
-	if not survivor_rescued:
-		target = survivor_position
-		return "目标 3/4：找到并招募幸存者 · 距离 %.0fm" % player.global_position.distance_to(target)
-	if not gate_open:
-		target = gate_position
-		return "目标 4/4：打开纪念碑机关 · 距离 %.0fm" % player.global_position.distance_to(target)
-	target = portal_position
-	return "最终目标：带幸存者进入传送门 · 距离 %.0fm" % player.global_position.distance_to(target)
+	if health < 35.0:
+		return "生存目标：先脱离感染者，使用绷带并找安全屋。"
+	if food <= 0 or water <= 0:
+		return "生存目标：搜刮食物和净水，别让需求归零。"
+	var nearest_distance := INF
+	var nearest_label := ""
+	for point in interaction_points:
+		var point_position: Vector3 = point.get("position", player.global_position)
+		var distance := player.global_position.distance_to(point_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_label = str(point.get("label", "物件"))
+	return "生存目标：搜刮并活下去 · 最近：%s %.0fm" % [nearest_label, nearest_distance]

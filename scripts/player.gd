@@ -1,8 +1,6 @@
 extends CharacterBody3D
 
 var world: Node
-var yaw := 0.0
-var pitch := -0.5
 var speed := 5.0
 var camera: Camera3D
 
@@ -35,23 +33,24 @@ func _ready() -> void:
 
 	camera = Camera3D.new()
 	camera.current = true
-	camera.fov = 58.0
+	camera.fov = 52.0
 	add_child(camera)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	# 生存原型使用固定俯视镜头；鼠标保持可见，用于点击门、垃圾桶和搜刮点。
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		yaw -= event.relative.x * 0.003
-		pitch = clamp(pitch - event.relative.y * 0.003, -1.15, -0.12)
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED)
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if world:
+			world.click_interact(event.position)
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if world:
+			world.player_attack()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_E:
 		if world:
 			world.player_interact()
 	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
-		if world:
-			world.player_attack()
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if world:
 			world.player_attack()
 
@@ -66,21 +65,17 @@ func _physics_process(_delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_S):
 		input_vec.y += 1.0
 	input_vec = input_vec.limit_length(1.0)
-	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
-	var direction := (right * input_vec.x + forward * input_vec.y).normalized()
+	var direction := Vector3(input_vec.x, 0.0, input_vec.y).normalized()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	velocity.y = -0.2
 	move_and_slide()
+	global_position.y = -0.05
 	global_position.x = clamp(global_position.x, -19.0, 19.0)
 	global_position.z = clamp(global_position.z, -19.0, 19.0)
 	_update_camera()
 
 func _update_camera() -> void:
-	var distance := 9.0
-	var offset := Vector3(0.0, 4.8, distance)
-	offset = offset.rotated(Vector3.RIGHT, pitch)
-	offset = offset.rotated(Vector3.UP, yaw)
+	var offset := Vector3(0.0, 12.0, 8.0)
 	camera.global_position = global_position + offset
 	camera.look_at(global_position + Vector3(0.0, 1.0, 0.0), Vector3.UP)
