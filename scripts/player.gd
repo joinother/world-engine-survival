@@ -63,6 +63,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
 		if world:
 			world.player_attack()
+	if event is InputEventKey and event.pressed and event.keycode == KEY_Q:
+		rotate_view(-1)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		rotate_view(1)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_V:

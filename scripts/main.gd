@@ -956,7 +956,7 @@ func _update_ui() -> void:
 	if cli_title_label:
 		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]
 	if camera_label and player:
-		camera_label.text = "伪3D · %s   R 旋转 · V 高低" % player.view_name()
+		camera_label.text = "伪3D · %s   Q/R 旋转 · V 高低" % player.view_name()
 
 func _objective_text() -> String:
 	if health < 35.0:
