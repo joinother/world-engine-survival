@@ -44,6 +44,8 @@ var message_label: Label
 var command_line: LineEdit
 var command_log: Label
 var cli_title_label: Label
+var cli_panel: ColorRect
+var camera_label: Label
 var last_command_output := ""
 
 func _ready() -> void:
@@ -86,7 +88,10 @@ func _setup_environment() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("8aa6b4")
-	environment.ambient_light_energy = 0.55
+	environment.ambient_light_energy = 0.42
+	environment.adjustment_enabled = true
+	environment.adjustment_contrast = 1.08
+	environment.adjustment_saturation = 1.12
 	environment.fog_enabled = true
 	environment.fog_light_color = Color("8da3a5")
 	environment.fog_density = 0.006
@@ -97,9 +102,17 @@ func _setup_environment() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48.0, -28.0, 0.0)
-	sun.light_energy = 1.3
+	sun.light_color = Color("ffd3a6")
+	sun.light_energy = 1.55
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 45.0
 	add_child(sun)
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-28.0, 150.0, 0.0)
+	fill.light_color = Color("8fb8d6")
+	fill.light_energy = 0.22
+	fill.shadow_enabled = false
+	add_child(fill)
 
 	_add_box(Vector3(0.0, -0.3, 0.0), Vector3(40.0, 0.5, 40.0), Color("172a2a"), true)
 	SceneArt.district(self)
@@ -138,48 +151,55 @@ func _setup_player() -> void:
 	player = Player.new()
 	player.world = self
 	add_child(player)
-	player.global_position = Vector3(-18.0, 0.0, 4.0)
+	player.global_position = Vector3(-5.0, 0.0, 8.0)
 
 func _setup_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var panel := ColorRect.new()
-	panel.position = Vector2(18, 18)
-	panel.size = Vector2(380, 312)
-	panel.color = Color(0.04, 0.07, 0.1, 0.9)
-	layer.add_child(panel)
-	var title := Label.new()
-	title.position = Vector2(20, 14)
-	title.text = "世界引擎 · 3D 生存原型"
-	title.add_theme_font_size_override("font_size", 20)
-	panel.add_child(title)
+	var status_panel := ColorRect.new()
+	status_panel.position = Vector2(18, 18)
+	status_panel.size = Vector2(520, 68)
+	status_panel.color = Color(0.025, 0.04, 0.055, 0.72)
+	status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(status_panel)
 	time_label = Label.new()
-	time_label.position = Vector2(20, 50)
-	panel.add_child(time_label)
-	objective_label = Label.new()
-	objective_label.position = Vector2(20, 70)
-	objective_label.size = Vector2(340, 24)
-	objective_label.modulate = Color("f6d365")
-	panel.add_child(objective_label)
+	time_label.position = Vector2(14, 9)
+	time_label.add_theme_font_size_override("font_size", 14)
+	status_panel.add_child(time_label)
 	stats_label = Label.new()
-	stats_label.position = Vector2(20, 96)
-	stats_label.size = Vector2(340, 82)
-	panel.add_child(stats_label)
+	stats_label.position = Vector2(14, 32)
+	stats_label.size = Vector2(500, 24)
+	stats_label.add_theme_font_size_override("font_size", 13)
+	status_panel.add_child(stats_label)
+	objective_label = Label.new()
+	objective_label.position = Vector2(260, 9)
+	objective_label.size = Vector2(245, 20)
+	objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	objective_label.add_theme_font_size_override("font_size", 12)
+	objective_label.modulate = Color("e4bd70")
+	status_panel.add_child(objective_label)
+	camera_label = Label.new()
+	camera_label.position = Vector2(1010, 18)
+	camera_label.size = Vector2(250, 30)
+	camera_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	camera_label.add_theme_font_size_override("font_size", 12)
+	camera_label.modulate = Color(0.82, 0.9, 0.92, 0.82)
+	camera_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(camera_label)
 	message_label = Label.new()
-	message_label.position = Vector2(20, 204)
-	message_label.size = Vector2(340, 54)
-	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	panel.add_child(message_label)
-	var help := Label.new()
-	help.position = Vector2(20, 284)
-	help.text = "WASD 移动 · 左键点击物件 · 空格/右键攻击 · E 互动"
-	help.modulate = Color("9eacbb")
-	panel.add_child(help)
+	message_label.position = Vector2(270, 648)
+	message_label.size = Vector2(740, 34)
+	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message_label.add_theme_font_size_override("font_size", 14)
+	message_label.modulate = Color(0.92, 0.88, 0.7, 0.92)
+	message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(message_label)
 
-	var cli_panel := ColorRect.new()
-	cli_panel.position = Vector2(18, 570)
-	cli_panel.size = Vector2(720, 125)
-	cli_panel.color = Color(0.04, 0.07, 0.1, 0.94)
+	cli_panel = ColorRect.new()
+	cli_panel.position = Vector2(760, 520)
+	cli_panel.size = Vector2(500, 170)
+	cli_panel.color = Color(0.025, 0.04, 0.055, 0.94)
+	cli_panel.visible = false
 	layer.add_child(cli_panel)
 	cli_title_label = Label.new()
 	cli_title_label.position = Vector2(14, 10)
@@ -187,24 +207,33 @@ func _setup_ui() -> void:
 	cli_title_label.modulate = Color("6ee7f7")
 	cli_panel.add_child(cli_title_label)
 	command_log = Label.new()
-	command_log.position = Vector2(14, 34)
-	command_log.size = Vector2(690, 42)
-	command_log.text = "输入 help 查看命令。所有命令都会经过规则验证。"
+	command_log.position = Vector2(14, 36)
+	command_log.size = Vector2(470, 72)
+	command_log.text = "输入 help 查看命令。"
 	command_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	command_log.modulate = Color("9bd6e4")
 	cli_panel.add_child(command_log)
 	command_line = LineEdit.new()
-	command_line.position = Vector2(14, 84)
-	command_line.size = Vector2(560, 28)
-	command_line.placeholder_text = "state / needs / use food / use water / event start horde"
+	command_line.position = Vector2(14, 126)
+	command_line.size = Vector2(350, 28)
+	command_line.placeholder_text = "state / needs / use food / event start horde"
 	command_line.text_submitted.connect(_run_command)
 	cli_panel.add_child(command_line)
 	var run_button := Button.new()
-	run_button.position = Vector2(586, 84)
-	run_button.size = Vector2(115, 28)
+	run_button.position = Vector2(378, 126)
+	run_button.size = Vector2(105, 28)
 	run_button.text = "执行"
 	run_button.pressed.connect(func(): _run_command(command_line.text))
 	cli_panel.add_child(run_button)
+
+func toggle_cli() -> void:
+	if not cli_panel:
+		return
+	cli_panel.visible = not cli_panel.visible
+	if cli_panel.visible:
+		command_line.grab_focus()
+	else:
+		get_viewport().gui_release_focus()
 
 func _add_building(pos: Vector3, size: Vector3, color: Color) -> void:
 	var use_k := int(abs(pos.x + pos.z)) % 2 == 1
@@ -402,7 +431,9 @@ func _update_zombies(delta: float) -> void:
 		if step.length() > 0.1:
 			current += step.normalized() * delta * float(content.rule("world").get("zombie_speed", 0.8)) * zombie_speed_multiplier
 		zombie_positions[i] = current
-		zombie.position = current + Vector3(0.0, 0.8, 0.0)
+		zombie.position = current + Vector3(0.0, 0.8 + sin(Time.get_ticks_msec() * 0.006 + i) * 0.035, 0.0)
+		if step.length() > 0.1:
+			zombie.rotation.y = lerp_angle(zombie.rotation.y, atan2(step.x, step.z), min(1.0, delta * 8.0))
 		if current.distance_to(player.global_position) < contact_range:
 			nearby_count += 1
 	if nearby_count > 0 and damage_cooldown_remaining <= 0.0:
@@ -431,6 +462,8 @@ func player_attack() -> void:
 		if distance <= target_distance:
 			target_index = index
 			target_distance = distance
+	if player.has_method("play_attack"):
+		player.play_attack()
 	if target_index < 0:
 		_set_message("挥击落空。")
 		attack_cooldown_remaining = 0.2
@@ -919,15 +952,17 @@ func _update_ui() -> void:
 	var minute := int(minutes) % 60
 	time_label.text = "第 %d 天 %02d:%02d" % [day, hour, minute]
 	objective_label.text = _objective_text()
-	stats_label.text = "生命 %.0f    饥饿 %.0f    口渴 %.0f    疲劳 %.0f\n食物 %d    净水 %d    绷带 %d    废料 %d\n出血 %.0f    感染 %.0f\n武器：临时木棍" % [health, hunger, thirst, fatigue, food, water, bandages, scrap, bleeding, infection]
+	stats_label.text = "生命 %.0f  饥饿 %.0f  口渴 %.0f  疲劳 %.0f    食物 %d  水 %d  绷带 %d" % [health, hunger, thirst, fatigue, food, water, bandages]
 	if cli_title_label:
 		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]
+	if camera_label and player:
+		camera_label.text = "伪3D · %s   R 旋转 · V 高低" % player.view_name()
 
 func _objective_text() -> String:
 	if health < 35.0:
-		return "生存目标：先脱离感染者，使用绷带并找安全屋。"
+		return "伤势严重"
 	if food <= 0 or water <= 0:
-		return "生存目标：搜刮食物和净水，别让需求归零。"
+		return "补给不足"
 	var nearest_distance := INF
 	var nearest_label := ""
 	for point in interaction_points:
@@ -936,4 +971,4 @@ func _objective_text() -> String:
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_label = str(point.get("label", "物件"))
-	return "生存目标：搜刮并活下去 · 最近：%s %.0fm" % [nearest_label, nearest_distance]
+	return "附近 · %s %.0fm" % [nearest_label, nearest_distance]
