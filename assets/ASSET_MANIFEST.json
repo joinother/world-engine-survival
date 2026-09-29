@@ -2,11 +2,284 @@
   "schema_version": 1,
   "policy": "Every imported asset requires provenance, license, source URL and hash.",
   "planned_sources": [
-    {"id": "kenney", "license": "CC0 per asset page", "status": "candidate"},
-    {"id": "polyhaven", "license": "CC0", "status": "candidate"},
-    {"id": "quaternius", "license": "QAL or CC0 per asset", "status": "candidate"},
-    {"id": "opengameart", "license": "review per asset", "status": "candidate"},
-    {"id": "freesound", "license": "review per sound", "status": "candidate"}
+    {
+      "id": "kenney",
+      "license": "CC0 per asset page",
+      "status": "imported"
+    },
+    {
+      "id": "polyhaven",
+      "license": "CC0",
+      "status": "candidate"
+    },
+    {
+      "id": "quaternius",
+      "license": "QAL or CC0 per asset",
+      "status": "candidate"
+    },
+    {
+      "id": "opengameart",
+      "license": "review per asset",
+      "status": "candidate"
+    },
+    {
+      "id": "freesound",
+      "license": "review per sound",
+      "status": "candidate"
+    }
   ],
-  "imported": []
+  "imported": [
+    {
+      "path": "assets/kenney/city-kit-suburban/building-type-a.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "49f32e20b9dcd24b1c8f6d6488807b8c8cb684cbb595bfb0bb36ad903e470faa",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/building-type-k.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "c1b819a526bbcf9663bc40c98e22337cded7fff7c50c14679132d5d98d75f583",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/building-type-f.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "6f778f50d7f03c86f9a018e428cf8ffdd9e918df09954c0651d1c9559584a22b",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/building-type-r.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "9b76ee3b9061b680ca14fd8cc838d1d5ca91b959e02833254f15d9236b8b20b7",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/tree-large.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "16d1f95c149bc727a953a473cf20bf21de9bf1a88747c4f9d2eeb4ac7d43e291",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/tree-small.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "5f63359e5f392609d7617cc98070855ca1ffd4f4b4bc3978a5ff56ece88a58d6",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/fence.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "073bd2000ac51879516d49f835d5156dac4d5038085380b1232858fc3f562d02",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/planter.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "a876e87d908f0397dcaf94b7705835447825c4c5b39195319535415386542c17",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-suburban/Textures/colormap.png",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-suburban/License.txt",
+      "sha256": "9b5de86078c25ef02351a80d35ff3c978693a1044565b73eedd9ae9b5b80665d",
+      "modifications": "None"
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/road-straight.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "f8f744fb6fc96dedd5ad1f763b550166f2624a3757bf36b4b39969d2e7cacac5",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/road-crossroad.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "2dc52a28cf89ec88025a047c0f6fff4c643f16b0f50f0e9a1140f16230c28b12",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/road-crossing.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "eb8575335f77da513add4a5277a7b60cad4886c07966f024b15cf55e5966cde3",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/construction-barrier.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "906f73a6d62d8de58a4c5a19e76ff95b460c42b37e5fa37478b8612f06793f26",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/construction-cone.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "50ceae45cd1d71f738a8f7c40f8b6b46f360063c2754bf717aae54013d6f2ee4",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/dumpster.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "c60ebecc23487c38b5e0750856a3b50744d2ea12b3c83ad03d537e5a4670777a",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/traffic-light.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "6c9ee253b7370e1043168493b2e662b349484a0cdd02100cff04d9d8d1bd9abb",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/road-sign-stop.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "0991181f37171daf8d2501e436a688e46ea2bcebb5e27aa451640fcbaab107ef",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/light-square.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "6230d136c8883d7f9bc1b86f0309077e452e26e5e1e587ef1b77abef3c5f047c",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/city-kit-roads/Textures/colormap.png",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/city-kit-roads/License.txt",
+      "sha256": "a48e2962661ae44368ffddf3054f80ed8491d082b757dcc3011184cd9a98b185",
+      "modifications": "None"
+    },
+    {
+      "path": "assets/kenney/car-kit/sedan.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "b532ea7d2c59f7f6b22b138cf1955218a2c1898f1cea932af4d3fd563c3959b7",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/police.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "a617b880594f56239b7ac4cf6fd4d74ebdae3ba6c5d842e77c76a5906eff352a",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/ambulance.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "9e429e2b6202c0d78d0c38b2adbaae6b77716bb2a0f6fbb2811556e1fb31edba",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/van.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/box.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "b773815c791d2708a2a70f1a9bb6d197d7211269ad96e273f9e364ea536c1b18",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/debris-tire.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "7c3f5968244e2c617c698820e943493b8480c7bef8535fbab04d4a501b3489e9",
+      "modifications": "None; original GLB. Placement/scaling only in scene code."
+    },
+    {
+      "path": "assets/kenney/car-kit/Textures/colormap.png",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/car-kit/License.txt",
+      "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "modifications": "None"
+    },
+    {
+      "path": "assets/kenney/blocky-characters/character-a.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/blocky-characters",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/blocky-characters/License.txt",
+      "sha256": "8ee5dae167ec589863f6bba222467eb90ace8be357a4c5abfcab289290181616",
+      "modifications": "None; original GLB. Scale and tint only in scene code."
+    },
+    {
+      "path": "assets/kenney/blocky-characters/character-r.glb",
+      "creator": "Kenney",
+      "source_url": "https://kenney.nl/assets/blocky-characters",
+      "license": "CC0-1.0",
+      "license_file": "assets/kenney/blocky-characters/License.txt",
+      "sha256": "b880654e0bcf4cfda119750d1ae0842ccfb73ae22f7844ab95015122b746808a",
+      "modifications": "None; original GLB. Scale and tint only in scene code."
+    }
+  ]
 }

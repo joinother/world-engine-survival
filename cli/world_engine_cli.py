@@ -28,6 +28,10 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="action", required=True)
     subparsers.add_parser("state")
     subparsers.add_parser("attack")
+    move = subparsers.add_parser("move")
+    move.add_argument("dx", type=float)
+    move.add_argument("dz", type=float)
+    subparsers.add_parser("interact")
     observe = subparsers.add_parser("observe")
     observe.add_argument("--radius", type=float, default=12.0)
     subparsers.add_parser("content")
@@ -49,6 +53,12 @@ def main() -> int:
         method = "world.state"
     elif args.action == "attack":
         method = "player.attack"
+    elif args.action == "move":
+        method = "player.move"
+        params["dx"] = args.dx
+        params["dz"] = args.dz
+    elif args.action == "interact":
+        method = "player.interact"
     elif args.action == "observe":
         method = "player.observe"
         params["radius"] = args.radius

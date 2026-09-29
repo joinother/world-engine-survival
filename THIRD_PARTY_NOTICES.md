@@ -45,4 +45,10 @@ No source code or assets from these projects are included in `res://`.
 - [Quaternius](https://github.com/Quaternius/quaternius.github.io/blob/main/license.html): use the current QAL or the exact license attached to each asset pack; do not redistribute raw packs as standalone assets.
 - [Freesound](https://freesound.org/): every sound is reviewed individually because the library contains multiple licenses.
 
-No external asset has been imported into the runtime yet. The tracking file is `assets/ASSET_MANIFEST.json`.
+Kenney City Kit Suburban, City Kit Roads and Car Kit assets are now imported under `assets/kenney/`. Each selected GLB and texture has a hash and provenance entry in `assets/ASSET_MANIFEST.json`; the packs include their CC0 license text alongside the files. The original ZIP downloads and unused source formats remain outside the runtime tree under the ignored `work/` directory.
+
+## Project Zomboid mod ecosystem
+
+Project Zomboid mods are not automatically reusable assets. The official [Modding Policy](https://projectzomboid.com/blog/modding-policy/) places responsibility for third-party permissions on the mod author, and the [Terms and Conditions](https://store.steampowered.com/eula/108600_eula_1) keep the game and its assets proprietary. Workshop availability therefore does not make a PZ mod compatible with this project's open-source distribution. We may study PZ's design and use independently licensed toolchains or libraries, but we do not copy PZ code, art, maps, models, or Workshop content without an explicit license.
+
+Open-source PZ-adjacent tools can still be references: [Storm](https://github.com/pzstorm/storm) is GPL-3.0, [Capsid](https://github.com/pzstorm/capsid) provides an MIT-licensed mod template, and [pz_lua_commons](https://github.com/escapepz/pz_lua_commons) is MIT. These target the PZ modding environment and are not runtime dependencies here.

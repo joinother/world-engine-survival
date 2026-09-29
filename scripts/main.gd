@@ -4,6 +4,7 @@ const Player = preload("res://scripts/player.gd")
 const ContentRegistry = preload("res://scripts/content_registry.gd")
 const SaveManager = preload("res://scripts/save_manager.gd")
 const CommandServer = preload("res://scripts/command_server.gd")
+const SceneArt = preload("res://scripts/scene_art.gd")
 
 var player: CharacterBody3D
 var content: ContentRegistry
@@ -45,6 +46,7 @@ var portal_position := Vector3(13.0, 0.0, -12.0)
 var gate_position := Vector3(4.0, 0.0, 3.0)
 var message := "WASD 移动，鼠标拖动自由视角，E 互动。"
 var time_label: Label
+var objective_label: Label
 var stats_label: Label
 var message_label: Label
 var command_line: LineEdit
@@ -82,11 +84,24 @@ func _process(delta: float) -> void:
 func _setup_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("0b1118")
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("162b45")
+	sky_material.sky_horizon_color = Color("d08c68")
+	sky_material.ground_horizon_color = Color("263a3b")
+	sky_material.ground_bottom_color = Color("0a1015")
+	sky_material.sun_angle_max = 18.0
+	sky.sky_material = sky_material
+	environment.background_mode = Environment.BG_SKY
+	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("8aa6b4")
 	environment.ambient_light_energy = 0.55
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("8da3a5")
+	environment.fog_density = 0.006
+	environment.fog_height = 1.0
+	environment.fog_height_density = 0.04
 	world_env.environment = environment
 	add_child(world_env)
 
@@ -97,10 +112,14 @@ func _setup_environment() -> void:
 	add_child(sun)
 
 	_add_box(Vector3(0.0, -0.3, 0.0), Vector3(40.0, 0.5, 40.0), Color("172a2a"), true)
+	SceneArt.district(self)
 	for x in range(-16, 17, 4):
 		_add_box(Vector3(x, 0.02, 0.0), Vector3(0.06, 0.03, 38.0), Color("284142"), false)
 	for z in range(-16, 17, 4):
 		_add_box(Vector3(0.0, 0.025, z), Vector3(38.0, 0.03, 0.06), Color("284142"), false)
+	# Kenney road segments are the visual source of truth for the drivable lanes.
+	for x in [-14.0, -8.0, -2.0, 4.0, 10.0, 16.0]:
+		_add_asset("res://assets/kenney/city-kit-roads/road-straight.glb", Vector3(x, 0.02, 2.0), Vector3(6.0, 0.18, 6.0), 0.0)
 
 	# 街区建筑：保留几何通道，方便测试自由视角和遮挡。
 	_add_building(Vector3(-12.0, 2.0, -10.0), Vector3(7.0, 4.0, 6.0), Color("3d5864"))
@@ -135,7 +154,7 @@ func _setup_player() -> void:
 	player = Player.new()
 	player.world = self
 	add_child(player)
-	player.global_position = Vector3(-14.0, 0.0, 8.0)
+	player.global_position = Vector3(-18.0, 0.0, 4.0)
 
 func _setup_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -153,17 +172,22 @@ func _setup_ui() -> void:
 	time_label = Label.new()
 	time_label.position = Vector2(20, 50)
 	panel.add_child(time_label)
+	objective_label = Label.new()
+	objective_label.position = Vector2(20, 70)
+	objective_label.size = Vector2(340, 24)
+	objective_label.modulate = Color("f6d365")
+	panel.add_child(objective_label)
 	stats_label = Label.new()
-	stats_label.position = Vector2(20, 76)
+	stats_label.position = Vector2(20, 96)
 	stats_label.size = Vector2(340, 82)
 	panel.add_child(stats_label)
 	message_label = Label.new()
-	message_label.position = Vector2(20, 184)
+	message_label.position = Vector2(20, 204)
 	message_label.size = Vector2(340, 54)
 	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(message_label)
 	var help := Label.new()
-	help.position = Vector2(20, 264)
+	help.position = Vector2(20, 284)
 	help.text = "WASD 移动 · 空格/左键挥击 · E 互动 · Esc 释放鼠标"
 	help.modulate = Color("9eacbb")
 	panel.add_child(help)
@@ -199,9 +223,24 @@ func _setup_ui() -> void:
 	cli_panel.add_child(run_button)
 
 func _add_building(pos: Vector3, size: Vector3, color: Color) -> void:
-	_add_box(pos, size, color, true)
+	var use_k := int(abs(pos.x + pos.z)) % 2 == 1
+	var source_size := Vector3(0.92, 1.02, 1.15) if use_k else Vector3(1.3, 1.03, 0.84)
+	var asset_path := "res://assets/kenney/city-kit-suburban/building-type-k.glb" if use_k else "res://assets/kenney/city-kit-suburban/building-type-a.glb"
+	var model := _add_asset(asset_path, pos, Vector3(size.x / source_size.x, size.y / source_size.y, size.z / source_size.z))
+	if model:
+		var body := StaticBody3D.new()
+		body.position = pos
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		collision.shape = shape
+		body.add_child(collision)
+		add_child(body)
 
 func _add_vehicle(pos: Vector3, color: Color) -> void:
+	var asset := _add_asset("res://assets/kenney/car-kit/sedan.glb", pos + Vector3(0.0, 0.55, 0.0), Vector3(1.15, 1.15, 1.15), deg_to_rad(pos.x * 7.0))
+	if asset:
+		return
 	var node := Node3D.new()
 	node.position = pos
 	var body := MeshInstance3D.new()
@@ -221,6 +260,9 @@ func _add_vehicle(pos: Vector3, color: Color) -> void:
 	add_child(node)
 
 func _add_tree(pos: Vector3) -> void:
+	var asset := _add_asset("res://assets/kenney/city-kit-suburban/tree-large.glb", pos, Vector3(4.0, 4.0, 4.0))
+	if asset:
+		return
 	var node := Node3D.new()
 	node.position = pos
 	var trunk := MeshInstance3D.new()
@@ -256,6 +298,17 @@ func _add_barricade(pos: Vector3) -> void:
 		node.add_child(plank)
 	add_child(node)
 
+func _add_asset(path: String, pos: Vector3, asset_scale: Vector3, rotation_y := 0.0) -> Node3D:
+	var packed := load(path) as PackedScene
+	if not packed:
+		return null
+	var instance := packed.instantiate() as Node3D
+	instance.position = pos
+	instance.scale = asset_scale
+	instance.rotation.y = rotation_y
+	add_child(instance)
+	return instance
+
 func _add_box(pos: Vector3, size: Vector3, color: Color, solid: bool) -> Node3D:
 	var node: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	node.position = pos
@@ -277,13 +330,58 @@ func _add_box(pos: Vector3, size: Vector3, color: Color, solid: bool) -> Node3D:
 func _add_marker(pos: Vector3, color: Color, _label: String) -> Node3D:
 	var node := Node3D.new()
 	node.position = pos
+	if _label == "感染者":
+		var zombie_scene := load("res://assets/kenney/blocky-characters/character-a.glb") as PackedScene
+		if zombie_scene:
+			var zombie_model := zombie_scene.instantiate() as Node3D
+			zombie_model.position = Vector3(0.0, 0.22, 0.0)
+			zombie_model.scale = Vector3(0.22, 0.22, 0.22)
+			node.add_child(zombie_model)
+		else:
+			SceneArt.human(node, Color("6e6258"))
+	elif _label == "幸存者":
+		var survivor_scene := load("res://assets/kenney/blocky-characters/character-r.glb") as PackedScene
+		if survivor_scene:
+			var survivor_model := survivor_scene.instantiate() as Node3D
+			survivor_model.position = Vector3(0.0, 0.22, 0.0)
+			survivor_model.scale = Vector3(0.22, 0.22, 0.22)
+			node.add_child(survivor_model)
+		else:
+			SceneArt.human(node, Color("6fc4ae"))
+	elif _label in ["废料", "工厂", "传送门", "纪念碑机关"]:
+		SceneArt.prop(node, _label, color)
+	if _label in ["工厂", "传送门", "纪念碑机关", "幸存者"]:
+		var beacon := MeshInstance3D.new()
+		var beacon_mesh := CylinderMesh.new()
+		beacon_mesh.top_radius = 0.05
+		beacon_mesh.bottom_radius = 0.16
+		beacon_mesh.height = 2.2
+		beacon.mesh = beacon_mesh
+		beacon.position.y = 1.0
+		beacon.material_override = _material(Color(color, 0.55))
+		node.add_child(beacon)
+		var lamp := OmniLight3D.new()
+		lamp.light_color = color
+		lamp.light_energy = 1.4
+		lamp.omni_range = 4.5
+		lamp.position.y = 1.8
+		node.add_child(lamp)
 	var mesh := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.45
 	sphere.height = 0.9
 	mesh.mesh = sphere
 	mesh.material_override = _material(color)
+	mesh.visible = _label in ["感染者", "幸存者"]
 	node.add_child(mesh)
+	var label := Label3D.new()
+	label.text = _label
+	label.position = Vector3(0.0, 1.25, 0.0)
+	label.font_size = 32
+	label.outline_size = 8
+	label.modulate = color.lightened(0.25)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	node.add_child(label)
 	add_child(node)
 	return node
 
@@ -313,8 +411,9 @@ func _update_zombies(delta: float) -> void:
 	if nearby_count > 0 and damage_cooldown_remaining <= 0.0:
 		health = max(0.0, health - contact_damage * nearby_count * delta)
 		fatigue = min(100.0, fatigue + nearby_count * delta * 2.0)
-		bleeding = min(100.0, bleeding + nearby_count * float(combat_rules.get("bleeding_per_contact", 8.0)))
-		infection = min(100.0, infection + nearby_count * float(combat_rules.get("infection_per_contact", 1.5)))
+		# 接触伤害按时间累积；一次贴身碰撞不会瞬间把状态条打满。
+		bleeding = min(100.0, bleeding + nearby_count * float(combat_rules.get("bleeding_per_contact", 8.0)) * delta)
+		infection = min(100.0, infection + nearby_count * float(combat_rules.get("infection_per_contact", 1.5)) * delta)
 		damage_cooldown_remaining = 0.25
 		_set_message("感染者正在撕扯你：按空格或鼠标左键挥击，然后立刻逃离。")
 		if health <= 0.0:
@@ -564,7 +663,7 @@ func _observe_state(radius: float = 12.0) -> Dictionary:
 			threats.append({"x": point.x, "y": point.y, "z": point.z, "distance": point.distance_to(player.global_position)})
 	var nearby_items: Array[Dictionary] = []
 	for item in debris:
-		if bool(item.get("taken", false)):
+		if not bool(item.get("taken", false)):
 			var point: Vector3 = item.get("position", Vector3.ZERO)
 			if point.distance_to(player.global_position) <= radius:
 				nearby_items.append({"type": "scrap", "x": point.x, "y": point.y, "z": point.z})
@@ -610,6 +709,18 @@ func _dispatch_rpc(method: String, params: Dictionary) -> Dictionary:
 			return {"ok": true, "observation": _observe_state(float(params.get("radius", 12.0)))}
 		"player.attack":
 			player_attack()
+			return {"ok": true, "state": _observe_state()}
+		"player.move":
+			var movement := Vector3(float(params.get("dx", 0.0)), 0.0, float(params.get("dz", 0.0)))
+			if movement.length() > 4.0:
+				movement = movement.normalized() * 4.0
+			# CLI/AI 移动是离散指令，不应继承键盘帧中的旧速度。
+			player.velocity = Vector3.ZERO
+			player.global_position.x = clamp(player.global_position.x + movement.x, -19.0, 19.0)
+			player.global_position.z = clamp(player.global_position.z + movement.z, -19.0, 19.0)
+			return {"ok": true, "state": _observe_state()}
+		"player.interact":
+			player_interact()
 			return {"ok": true, "state": _observe_state()}
 		"world.content":
 			return {"ok": true, "sources": content.sources, "items": content.ids("items"), "recipes": content.ids("recipes"), "events": content.ids("events")}
@@ -687,13 +798,18 @@ func player_interact() -> void:
 		_set_message("幸存者加入了队伍。")
 		return
 	if player.global_position.distance_to(gate_position) < 2.0:
+		if cores < 3 or not survivor_rescued:
+			_set_message("纪念碑机关需要 3 个能量核心和一名幸存者。")
+			return
 		gate_open = not gate_open
-		_set_message("纪念碑机关已" + ("打开。" if gate_open else "关闭。"))
+		_set_message("纪念碑机关已" + ("打开，传送门路线已解锁。" if gate_open else "关闭。"))
 		return
 	if player.global_position.distance_to(portal_position) < 2.2:
-		if cores >= 3 and survivor_rescued:
+		if cores >= 3 and survivor_rescued and gate_open:
 			game_won = true
 			_set_message("传送门启动。第一片区 3D 原型完成。")
+		elif not gate_open:
+			_set_message("传送门尚未接通：先打开纪念碑机关。")
 		else:
 			_set_message("传送门需要 3 个能量核心和一名幸存者。")
 
@@ -835,6 +951,31 @@ func _update_ui() -> void:
 	var hour := int(minutes / 60.0) % 24
 	var minute := int(minutes) % 60
 	time_label.text = "第 %d 天 %02d:%02d" % [day, hour, minute]
+	objective_label.text = _objective_text()
 	stats_label.text = "废料 %d    能量 %d    核心 %d/3    幸存者 %d\n生命 %.0f    饥饿 %.0f    口渴 %.0f    疲劳 %.0f\n出血 %.0f    感染 %.0f    绷带 %d\n武器：临时木棍" % [scrap, energy, cores, 2 if survivor_rescued else 1, health, hunger, thirst, fatigue, bleeding, infection, bandages]
 	if cli_title_label:
 		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]
+
+func _objective_text() -> String:
+	var target := player.global_position
+	if scrap < 6:
+		var nearest_distance := INF
+		for item in debris:
+			if not bool(item.get("taken", false)):
+				var item_position: Vector3 = item.get("position", player.global_position)
+				var item_distance := player.global_position.distance_to(item_position)
+				if item_distance < nearest_distance:
+					nearest_distance = item_distance
+					target = item_position
+		return "目标 1/4：搜集废料 %d/6 · 距离 %.0fm" % [min(scrap, 6), player.global_position.distance_to(target)]
+	if cores < 3:
+		target = factory_position
+		return "目标 2/4：工厂制造能量核心 %d/3 · 距离 %.0fm" % [cores, player.global_position.distance_to(target)]
+	if not survivor_rescued:
+		target = survivor_position
+		return "目标 3/4：找到并招募幸存者 · 距离 %.0fm" % player.global_position.distance_to(target)
+	if not gate_open:
+		target = gate_position
+		return "目标 4/4：打开纪念碑机关 · 距离 %.0fm" % player.global_position.distance_to(target)
+	target = portal_position
+	return "最终目标：带幸存者进入传送门 · 距离 %.0fm" % player.global_position.distance_to(target)

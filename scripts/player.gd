@@ -24,7 +24,14 @@ func _ready() -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("66d9ef")
 	body.material_override = material
+	body.visible = false
 	add_child(body)
+	var character_scene := load("res://assets/kenney/blocky-characters/character-r.glb") as PackedScene
+	if character_scene:
+		var character := character_scene.instantiate() as Node3D
+		character.position = Vector3(0.0, 0.22, 0.0)
+		character.scale = Vector3(0.22, 0.22, 0.22)
+		add_child(character)
 
 	camera = Camera3D.new()
 	camera.current = true

@@ -59,6 +59,8 @@ audit tail
 - `world.state`
 - `player.observe`
 - `player.attack`
+- `player.move`
+- `player.interact`
 - `world.content`
 - `world.command`
 - `time.advance`

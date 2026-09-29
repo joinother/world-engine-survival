@@ -4,3 +4,5 @@
 .references/
 .DS_Store
 __pycache__/
+*.import
+work/
