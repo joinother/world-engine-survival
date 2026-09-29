@@ -6,6 +6,8 @@ var camera: Camera3D
 var character_visual: Node3D
 var view_quadrant := 0
 var high_angle := false
+var first_person := false
+var camera_in_transition := false
 var action_timer := 0.0
 var facing := Vector3(0.0, 0.0, 1.0)
 const VIEW_NAMES := ["南向", "西向", "北向", "东向"]
@@ -69,6 +71,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_view(1)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_V:
 		toggle_angle()
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		toggle_camera_mode()
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F1:
 		if world:
 			world.toggle_cli()
@@ -85,7 +89,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_S):
 		input_vec.y += 1.0
 	input_vec = input_vec.limit_length(1.0)
-	var direction := Vector3(input_vec.x, 0.0, input_vec.y).normalized()
+	var forward := _view_forward()
+	var right := Vector3(-forward.z, 0.0, forward.x)
+	var direction := (right * input_vec.x + forward * -input_vec.y).normalized()
 	if direction.length() > 0.01:
 		facing = direction
 		if character_visual:
@@ -103,11 +109,48 @@ func _physics_process(delta: float) -> void:
 		character_visual.rotation.x = -sin((0.28 - action_timer) * 10.0) * 0.18 if action_timer > 0.0 else lerp(character_visual.rotation.x, 0.0, min(1.0, delta * 12.0))
 	_update_camera()
 
-func _update_camera() -> void:
+func _iso_offset() -> Vector3:
 	var base_offset := Vector3(9.0, 10.5, 9.0) if not high_angle else Vector3(13.0, 14.0, 13.0)
-	var offset := base_offset.rotated(Vector3.UP, float(view_quadrant) * PI * 0.5)
-	camera.global_position = global_position + offset
-	camera.look_at(global_position + Vector3(0.0, 0.8, 0.0), Vector3.UP)
+	return base_offset.rotated(Vector3.UP, float(view_quadrant) * PI * 0.5)
+
+func _view_forward() -> Vector3:
+	if not first_person:
+		var iso := _iso_offset()
+		iso.y = 0.0
+		return (-iso).normalized()
+	var angle := float(view_quadrant) * PI * 0.5
+	return Vector3(sin(angle), 0.0, cos(angle)).normalized()
+
+func _update_camera() -> void:
+	if not camera_in_transition:
+		camera.position = Vector3(0.0, 1.55, 0.12) if first_person else _iso_offset()
+	if first_person:
+		camera.look_at(global_position + Vector3(0.0, 1.5, 0.0) + _view_forward() * 10.0, Vector3.UP)
+	else:
+		camera.look_at(global_position + Vector3(0.0, 0.8, 0.0), Vector3.UP)
+
+func toggle_camera_mode() -> void:
+	first_person = not first_person
+	camera_in_transition = true
+	if first_person:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		camera.fov = 72.0
+		if character_visual:
+			character_visual.visible = false
+	else:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.size = 18.0
+		camera.fov = 52.0
+		if character_visual:
+			character_visual.visible = true
+	var target_position := Vector3(0.0, 1.55, 0.12) if first_person else _iso_offset()
+	var tween := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(camera, "position", target_position, 0.48)
+	tween.finished.connect(func(): camera_in_transition = false)
+	if world:
+		if world.has_method("camera_transition"):
+			world.camera_transition()
+		world._set_message("视角切换：%s" % view_name())
 
 func rotate_view(step: int = 1) -> void:
 	view_quadrant = posmod(view_quadrant + step, 4)
@@ -116,13 +159,16 @@ func rotate_view(step: int = 1) -> void:
 		world._set_message("视角切换：%s" % view_name())
 
 func toggle_angle() -> void:
+	if first_person:
+		return
 	high_angle = not high_angle
 	_update_camera()
 	if world:
 		world._set_message("镜头高度：%s" % ("远景" if high_angle else "近景"))
 
 func view_name() -> String:
-	return VIEW_NAMES[view_quadrant] + ("·远景" if high_angle else "·近景")
+	var direction: String = VIEW_NAMES[view_quadrant]
+	return ("第一人称·" + direction) if first_person else (direction + ("·远景" if high_angle else "·近景"))
 
 func play_attack() -> void:
 	action_timer = 0.28

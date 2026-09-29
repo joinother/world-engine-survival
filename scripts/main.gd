@@ -36,7 +36,7 @@ var debris: Array[Dictionary] = []
 var interaction_points: Array[Dictionary] = []
 var zombies: Array[Node3D] = []
 var zombie_positions: Array[Vector3] = []
-var message := "WASD 移动，左键点击物件，E 互动。"
+var message := ""
 var time_label: Label
 var objective_label: Label
 var stats_label: Label
@@ -46,6 +46,7 @@ var command_log: Label
 var cli_title_label: Label
 var cli_panel: ColorRect
 var camera_label: Label
+var transition_overlay: ColorRect
 var last_command_output := ""
 
 func _ready() -> void:
@@ -61,7 +62,7 @@ func _ready() -> void:
 	command_server.request_received.connect(_handle_rpc_request)
 	add_child(command_server)
 	command_server.start(9555)
-	_set_message("%s 已加载 %d 个内容源。" % [message, content.sources.size()])
+	_set_message("场景已加载。")
 
 func _process(delta: float) -> void:
 	if not game_over and not game_won:
@@ -120,32 +121,39 @@ func _setup_environment() -> void:
 	for x in [-14.0, -8.0, -2.0, 4.0, 10.0, 16.0]:
 		_add_asset("res://assets/kenney/city-kit-roads/road-straight.glb", Vector3(x, 0.02, 2.0), Vector3(6.0, 0.18, 6.0), 0.0)
 
-	# 街区建筑：给固定俯视镜头提供清晰的街道、遮挡和可搜刮目标。
-	_add_building(Vector3(-12.0, 2.0, -10.0), Vector3(7.0, 4.0, 6.0), Color("3d5864"))
-	_add_building(Vector3(-2.0, 3.0, -11.0), Vector3(6.0, 6.0, 7.0), Color("455664"))
-	_add_building(Vector3(9.0, 2.5, -4.0), Vector3(8.0, 5.0, 5.0), Color("4c526a"))
-	_add_building(Vector3(13.0, 1.6, 7.0), Vector3(5.0, 3.2, 8.0), Color("5d4f65"))
-	_add_building(Vector3(-12.0, 1.4, 10.0), Vector3(8.0, 2.8, 6.0), Color("4f6257"))
-	for point in [Vector3(-7.0, 0.0, -1.0), Vector3(5.0, 0.0, 7.0), Vector3(11.0, 0.0, -10.0)]:
-		_add_vehicle(point, Color("71808d"))
-	for point in [Vector3(-10.0, 0.0, 4.0), Vector3(6.0, 0.0, -1.0), Vector3(16.0, 0.0, 8.0), Vector3(-2.0, 0.0, 15.0)]:
-		_add_tree(point)
-	for point in [Vector3(-1.0, 0.0, 3.0), Vector3(7.0, 0.0, 5.0)]:
-		_add_barricade(point)
-
-	_add_interaction_point(Vector3(-12.0, 0.0, 13.0), "safehouse", "安全屋·门", Color("76c7a8"))
-	_add_interaction_point(Vector3(11.0, 0.0, 8.0), "dumpster", "垃圾桶", Color("8aa0a5"))
-
-	var debris_points := [Vector3(-8,0,6), Vector3(-3,0,-4), Vector3(2,0,8), Vector3(8,0,4), Vector3(15,0,-8), Vector3(-15,0,2)]
-	for point in debris_points:
+	# 固定街区由 content/map.json 驱动，所有 footprint 都按同一张网格布局。
+	var layout := _load_map_layout()
+	for building in layout.get("buildings", []):
+		_add_building(_layout_point(building), Vector3(float(building.get("w", 6.0)), float(building.get("h", 4.0)), float(building.get("d", 6.0))), Color(str(building.get("color", "455664"))))
+	for vehicle in layout.get("vehicles", []):
+		_add_vehicle(_layout_point(vehicle), Color(str(vehicle.get("color", "71808d"))))
+	for tree in layout.get("trees", []):
+		_add_tree(_layout_point(tree))
+	for barricade in layout.get("barricades", []):
+		_add_barricade(_layout_point(barricade))
+	for interaction in layout.get("interactions", []):
+		_add_interaction_point(_layout_point(interaction), str(interaction.get("id", "")), str(interaction.get("label", "物件")), Color(str(interaction.get("color", "d3a552"))))
+	for debris_point in layout.get("debris", []):
+		var point := _layout_point(debris_point)
 		debris.append({"position": point, "taken": false})
 		_add_interaction_point(point, "debris:%d" % (debris.size() - 1), "搜刮点", Color("d3a552"))
-
-	for point in [Vector3(16,0,0), Vector3(11,0,11), Vector3(-6,0,-16), Vector3(17,0,-5)]:
+	for zombie_point in layout.get("zombies", []):
+		var point := _layout_point(zombie_point)
 		var zombie := _add_marker(point + Vector3(0.0, 0.8, 0.0), Color("ef5b62"), "感染者")
 		zombies.append(zombie)
 		zombie_positions.append(point)
 		zombie_health.append(float(content.rule("combat").get("zombie_health", 100.0)))
+
+func _load_map_layout() -> Dictionary:
+	var file := FileAccess.open("res://content/map.json", FileAccess.READ)
+	if not file:
+		push_warning("content/map.json could not be loaded")
+		return {}
+	var parsed = JSON.parse_string(file.get_as_text())
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+func _layout_point(entry: Dictionary) -> Vector3:
+	return Vector3(float(entry.get("x", 0.0)), 0.0, float(entry.get("z", 0.0)))
 
 func _setup_player() -> void:
 	player = Player.new()
@@ -225,6 +233,23 @@ func _setup_ui() -> void:
 	run_button.text = "执行"
 	run_button.pressed.connect(func(): _run_command(command_line.text))
 	cli_panel.add_child(run_button)
+	transition_overlay = ColorRect.new()
+	transition_overlay.position = Vector2.ZERO
+	transition_overlay.size = Vector2(1280, 720)
+	transition_overlay.color = Color.BLACK
+	transition_overlay.modulate.a = 0.0
+	transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(transition_overlay)
+
+func camera_transition() -> void:
+	if not transition_overlay:
+		return
+	transition_overlay.visible = true
+	transition_overlay.modulate.a = 0.0
+	var tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(transition_overlay, "modulate:a", 0.72, 0.14)
+	tween.tween_property(transition_overlay, "modulate:a", 0.0, 0.34)
+	tween.finished.connect(func(): transition_overlay.visible = false)
 
 func toggle_cli() -> void:
 	if not cli_panel:
@@ -239,7 +264,8 @@ func _add_building(pos: Vector3, size: Vector3, color: Color) -> void:
 	var use_k := int(abs(pos.x + pos.z)) % 2 == 1
 	var source_size := Vector3(0.92, 1.02, 1.15) if use_k else Vector3(1.3, 1.03, 0.84)
 	var asset_path := "res://assets/kenney/city-kit-suburban/building-type-k.glb" if use_k else "res://assets/kenney/city-kit-suburban/building-type-a.glb"
-	var model := _add_asset(asset_path, pos, Vector3(size.x / source_size.x, size.y / source_size.y, size.z / source_size.z))
+	# Kenney 建筑 GLB 的原点在地面中心，模型位置必须落在 y=0；碰撞盒仍以 footprint 中心为基准。
+	var model := _add_asset(asset_path, Vector3(pos.x, 0.0, pos.z), Vector3(size.x / source_size.x, size.y / source_size.y, size.z / source_size.z))
 	if model:
 		var body := StaticBody3D.new()
 		body.position = pos
@@ -360,7 +386,8 @@ func _add_marker(pos: Vector3, color: Color, label_text: String) -> Node3D:
 	sphere.height = 0.9
 	marker.mesh = sphere
 	marker.material_override = _material(color)
-	marker.visible = label_text == "感染者"
+	# 感染者使用角色 GLB；球体只作为无资产时的降级，不再制造漂浮红圈。
+	marker.visible = label_text == "感染者" and not node.get_child_count() > 0
 	node.add_child(marker)
 	var label := Label3D.new()
 	label.text = label_text
@@ -956,7 +983,7 @@ func _update_ui() -> void:
 	if cli_title_label:
 		cli_title_label.text = "AI / CLI 管理台（%s · 活跃事件 %d）" % [operator_role, active_events.size()]
 	if camera_label and player:
-		camera_label.text = "伪3D · %s   Q/R 旋转 · V 高低" % player.view_name()
+		camera_label.text = "伪3D · %s   Q/R 旋转 · V 高低 · F 第一人称" % player.view_name()
 
 func _objective_text() -> String:
 	if health < 35.0:
