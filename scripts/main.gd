@@ -124,7 +124,7 @@ func _setup_environment() -> void:
 	# 固定街区由 content/map.json 驱动，所有 footprint 都按同一张网格布局。
 	var layout := _load_map_layout()
 	for building in layout.get("buildings", []):
-		_add_building(_layout_point(building), Vector3(float(building.get("w", 6.0)), float(building.get("h", 4.0)), float(building.get("d", 6.0))), Color(str(building.get("color", "455664"))))
+		_add_building(_layout_point(building), Vector3(float(building.get("w", 6.0)), float(building.get("h", 4.0)), float(building.get("d", 6.0))), Color(str(building.get("color", "455664"))), str(building.get("variant", "a")))
 	for vehicle in layout.get("vehicles", []):
 		_add_vehicle(_layout_point(vehicle), Color(str(vehicle.get("color", "71808d"))))
 	for tree in layout.get("trees", []):
@@ -260,21 +260,40 @@ func toggle_cli() -> void:
 	else:
 		get_viewport().gui_release_focus()
 
-func _add_building(pos: Vector3, size: Vector3, color: Color) -> void:
-	var use_k := int(abs(pos.x + pos.z)) % 2 == 1
-	var source_size := Vector3(0.92, 1.02, 1.15) if use_k else Vector3(1.3, 1.03, 0.84)
-	var asset_path := "res://assets/kenney/city-kit-suburban/building-type-k.glb" if use_k else "res://assets/kenney/city-kit-suburban/building-type-a.glb"
+func _add_building(pos: Vector3, size: Vector3, tint: Color, variant: String = "a") -> void:
+	var source_sizes := {
+		"a": Vector3(1.3, 0.833541, 1.028138),
+		"f": Vector3(1.428, 1.1375, 1.405891),
+		"k": Vector3(0.920938, 1.149596, 1.02),
+		"r": Vector3(1.028, 1.141143, 1.02)
+	}
+	var safe_variant := variant if source_sizes.has(variant) else "a"
+	var source_size: Vector3 = source_sizes[safe_variant]
+	var asset_path := "res://assets/kenney/city-kit-suburban/building-type-%s.glb" % safe_variant
 	# Kenney 建筑 GLB 的原点在地面中心，模型位置必须落在 y=0；碰撞盒仍以 footprint 中心为基准。
 	var model := _add_asset(asset_path, Vector3(pos.x, 0.0, pos.z), Vector3(size.x / source_size.x, size.y / source_size.y, size.z / source_size.z))
 	if model:
+		_tint_asset(model, tint)
 		var body := StaticBody3D.new()
-		body.position = pos
+		body.position = Vector3(pos.x, size.y * 0.5, pos.z)
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
 		shape.size = size
 		collision.shape = shape
 		body.add_child(collision)
 		add_child(body)
+
+func _tint_asset(root: Node3D, tint: Color) -> void:
+	for child in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := child as MeshInstance3D
+		if not mesh_instance.mesh:
+			continue
+		for surface_index in range(mesh_instance.mesh.get_surface_count()):
+			var source_material := mesh_instance.get_active_material(surface_index)
+			if source_material is StandardMaterial3D:
+				var material := source_material.duplicate() as StandardMaterial3D
+				material.albedo_color = Color(source_material.albedo_color.r * tint.r, source_material.albedo_color.g * tint.g, source_material.albedo_color.b * tint.b, source_material.albedo_color.a)
+				mesh_instance.set_surface_override_material(surface_index, material)
 
 func _add_vehicle(pos: Vector3, color: Color) -> void:
 	var asset := _add_asset("res://assets/kenney/car-kit/sedan.glb", pos + Vector3(0.0, 0.55, 0.0), Vector3(1.15, 1.15, 1.15), deg_to_rad(pos.x * 7.0))
